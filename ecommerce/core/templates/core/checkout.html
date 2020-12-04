@@ -1,0 +1,139 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<!-- Start Checkout Area -->
+<section class="our-checkout-area ptb--120 bg__white">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 col-lg-8">
+        <div class="ckeckout-left-sidebar">
+          <!-- Start Checkbox Area -->
+          <div class="checkout-form">
+            <h2 class="section-title-3">Billing details</h2>
+            <div class="checkout-form-inner">
+
+              {% if form.errors %}
+              <p>Please fill in all the required fields with valid information.</p>
+              {% endif %}
+
+              {% if existing_addresses %}
+              <form action="{% url 'core:checkout' %}" method="post">
+                {% csrf_token %}
+                <p>Existing addresses:</p>
+                {% for address in existing_addresses %}
+                <div class="single-checkout-box">
+                  <input type="radio" name="addresses" id="old-{{ address.pk }}" value="{{ address.pk }}" checked>
+                  <label for="old-{{ address.pk }}">{{ address.street_address }}, {{ address.city }},
+                    {{ address.zip_code }}</label>
+                </div>
+                {% endfor %}
+                <div class="single-checkout-box">
+                  <input type="radio" name="addresses" id="new-address" value="0">
+                  <label for="new-address">Use new address</label>
+                </div>
+                <div class="single-checkout-box submit-existing-address"><input type="submit" value="Proceed to payment"></div>
+              </form>
+              {% endif %}
+
+              <form action="{% url 'core:checkout' %}" method="post" class="add-new-address">
+                {% csrf_token %}
+                <div class="single-checkout-box">{{ form.name }}</div>
+                <div class="single-checkout-box">{{ form.country }}</div>
+                <div class="single-checkout-box">{{ form.province }}</div>
+                <div class="single-checkout-box">{{ form.zip_code }}</div>
+                <div class="single-checkout-box">{{ form.city }}</div>
+                <div class="single-checkout-box">{{ form.suburb }}</div>
+                <div class="single-checkout-box">{{ form.street_address }}</div>
+                <div class="single-checkout-box">{{ form.mobile_number }}</div>
+                <div class="single-checkout-box">{{ form.is_billing }} {{ form.is_billing.label }} </div>
+                <div class="single-checkout-box">{{ form.is_shipping }} {{ form.is_shipping.label }}</div>
+                <div class="single-checkout-box"><input type="submit" value="Proceed to payment"></div>
+
+              </form>
+            </div>
+          </div>
+          <!-- End Checkbox Area -->
+          <!-- Start Payment Box -->
+          <div class="payment-form">
+            <h2 class="section-title-3">payment details</h2>
+            <p>Lorem ipsum dolor sit amet, consectetur kgjhyt</p>
+            <div class="payment-form-inner">
+              <div class="single-checkout-box">
+                <input type="text" placeholder="Name on Card*">
+                <input type="text" placeholder="Card Number*">
+              </div>
+              <div class="single-checkout-box select-option">
+                <select>
+                  <option>Date*</option>
+                  <option>Date</option>
+                  <option>Date</option>
+                  <option>Date</option>
+                  <option>Date</option>
+                </select>
+                <input type="text" placeholder="Security Code*">
+              </div>
+            </div>
+          </div>
+          <!-- End Payment Box -->
+          <!-- Start Payment Way -->
+          <div class="our-payment-sestem">
+            <h2 class="section-title-3">We Accept :</h2>
+            <ul class="payment-menu">
+              <li><a href="#"><img src="images/payment/1.jpg" alt="payment-img"></a></li>
+              <li><a href="#"><img src="images/payment/2.jpg" alt="payment-img"></a></li>
+              <li><a href="#"><img src="images/payment/3.jpg" alt="payment-img"></a></li>
+              <li><a href="#"><img src="images/payment/4.jpg" alt="payment-img"></a></li>
+              <li><a href="#"><img src="images/payment/5.jpg" alt="payment-img"></a></li>
+            </ul>
+            <div class="checkout-btn">
+              <a class="ts-btn btn-light btn-large hover-theme" href="#">CONFIRM & BUY NOW</a>
+            </div>
+          </div>
+          <!-- End Payment Way -->
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-4">
+        <div class="checkout-right-sidebar">
+          <div class="our-important-note">
+            <h2 class="section-title-3">Note :</h2>
+            <p class="note-desc">Lorem ipsum dolor sit amet, consectetur adipisici elit, sed do eiusmod tempor
+              incididunt ut laborekf et dolore magna aliqua.</p>
+            <ul class="important-note">
+              <li><a href="#"><i class="zmdi zmdi-caret-right-circle"></i>Lorem ipsum dolor sit amet, consectetur
+                  nipabali</a></li>
+              <li><a href="#"><i class="zmdi zmdi-caret-right-circle"></i>Lorem ipsum dolor sit amet</a></li>
+              <li><a href="#"><i class="zmdi zmdi-caret-right-circle"></i>Lorem ipsum dolor sit amet, consectetur
+                  nipabali</a></li>
+              <li><a href="#"><i class="zmdi zmdi-caret-right-circle"></i>Lorem ipsum dolor sit amet, consectetur
+                  nipabali</a></li>
+              <li><a href="#"><i class="zmdi zmdi-caret-right-circle"></i>Lorem ipsum dolor sit amet</a></li>
+            </ul>
+          </div>
+          <div class="puick-contact-area mt--60">
+            <h2 class="section-title-3">Quick Contract</h2>
+            <a href="phone:+8801722889963">+012 345 678 102 </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock content %}
+
+{% block script %}
+<script>
+  // Hides new address block when selecting existing address
+  var newAddressBlock = $(".add-new-address");
+  var existingAddressBlock = $(".submit-existing-address");
+  newAddressBlock.hide();
+  $("input[name='addresses']").on("click", function (event) {
+    if ($(this).attr("value") == 0) {
+      newAddressBlock.show();
+      existingAddressBlock.hide();
+    } else {
+      newAddressBlock.hide();
+      existingAddressBlock.show();
+    }
+
+  });
+</script>
+{% endblock script %}

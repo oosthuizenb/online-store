@@ -137,6 +137,7 @@ MESSAGE_TAGS = {
 }
 
 # PayFast settings
+PAYFAST_URL = "https://sandbox.payfast.co.za"
 PAYFAST_MERCHANT_ID = ""
 PAYFAST_MERCHANT_KEY = ""
 PAYFAST_RETURN_URL = ""

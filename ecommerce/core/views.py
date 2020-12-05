@@ -8,7 +8,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 
 import hashlib
-import requests
+from urllib.parse import urlencode, quote_plus
 
 from .models import Product, Order, OrderItem, Address, Payment
 from .forms import RegisterForm, AddressForm
@@ -125,6 +125,12 @@ def remove_single_from_cart(request, product_id):
 
 @login_required
 def checkout(request):
+    # Check if order is active, otherwise raise 404
+    # TODO optimise this
+    if request.user.order_set.filter(is_active=True).exists():
+        order = request.user.order_set.get(is_active=True)
+    else:
+        raise Http404
     if request.method == 'POST':
         # Check if address_id is None, then create new address
         address_id = request.POST.get('addresses')
@@ -139,41 +145,35 @@ def checkout(request):
             # If the address_id exists, then use that address for payment
             address = get_object_or_404(Address, pk=address_id)
             
-        # TODO create payment instance
-        payment = Payment()
+        payment = Payment(amount=order.total_price, item_name="Order #{}".format(order.id), address=address, order=order)
+        payment.save()
+        
         # Prepare data to be submitted to PayFast
         payment_data = {
             'merchant_id': settings.PAYFAST_MERCHANT_ID,
             'merchant_key': settings.PAYFAST_MERCHANT_KEY,
-            'return_url': settings.RETURN_URL,
-            'cancel_url': settings.CANCEL_URL,
-            'notify_url': settings.NOTIFY_URL,
-            'name_first': address.name,
-            'cell_number': address.mobile_number,
+            'return_url': settings.PAYFAST_RETURN_URL,
+            'cancel_url': settings.PAYFAST_CANCEL_URL,
+            'notify_url': settings.PAYFAST_NOTIFY_URL,
+            'name_first': address.name.strip(), #TODO improve client side validation
+            'cell_number': address.mobile_number.strip(),
             'm_payment_id': payment.id,
             'amount': payment.amount,
             'item_name': payment.item_name,
             # 'email_confirmation': 1, 1=on 0=off
             'passphrase': 'password',
         }        
-        # TODO move hash generation to separate file
-        # Concatenate key and value pairs for MD5 hash
-        signature_string = ''
-        for k, v in payment_data.items():
-            signature_string = signature_string + k + '=' + v.strip()
-            if k != 'passphrase':
-                signature_string = signature_string + '&'
-                
-        # Replace each space with a + and make all characters uppercase TODO: not sure about uppercase?
-        signature_string = signature_string.replace(' ', '+')
-        # signature_string = signature_string.upper()
         
+        # Generate signature MD5 hash        
+        signature_string = urlencode(payment_data, quote_via=quote_plus)
         signature = hashlib.md5(signature_string.encode())
         payment_data['signature'] = signature.hexdigest()
+
+        # Render template showing payment methods
+        return render(request, "core/payments.html", {
+            'payment_data': payment_data, 'payfast_url': settings.PAYFAST_URL,
+            })
         
-        # Submit POST request to PayFast
-        r = requests.post('payfast url', data=payment_data)
-        r_response = r.json()
     # If GET or any other method then create unbound form
     else:
         # Check if user has existing address
@@ -185,3 +185,7 @@ def checkout(request):
         'form': form,
         'existing_addresses': existing_addresses,
     })
+    
+def process_payment(request):
+    # TODO PayFast payment notification handling..
+    pass

@@ -86,3 +86,6 @@ class Payment(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     successful = models.BooleanField(default=False)
     refund = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f'{self.item_name} R{self.amount}'

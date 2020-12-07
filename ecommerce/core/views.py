@@ -161,10 +161,10 @@ def checkout(request):
             'amount': payment.amount,
             'item_name': payment.item_name,
             # 'email_confirmation': 1, 1=on 0=off
-            'passphrase': 'password',
+            'passphrase': settings.PAYFAST_PASSPHRASE,
         }        
         
-        # Generate signature MD5 hash        
+        # URL encode payment data and generate signature MD5 hash        
         signature_string = urlencode(payment_data, quote_via=quote_plus)
         signature = hashlib.md5(signature_string.encode())
         payment_data['signature'] = signature.hexdigest()
@@ -186,6 +186,23 @@ def checkout(request):
         'existing_addresses': existing_addresses,
     })
     
-def process_payment(request):
-    # TODO PayFast payment notification handling..
-    pass
+def payment_notify(request):
+    # Return 200 Header to PayFast after 4 security checks:
+    
+    # Security check 1: Verify signature
+    payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
+    payment_data['passphrase'] = settings.PAYFAST_PASSHRASE
+    signature_string = urlencode(payment_data, quote_via=quote_plus)
+    payfast_signature = payment_data.pop('signature')
+    generated_signature = hashlib.md5(signature_string.encode())
+    if payfast_signature != generated_signature:
+        # If they signatures are unequal, return the 200 Header to indicate that the page is reachable. TODO: What happens if security check fails?
+        return HttpResponse()
+    
+    # Security check 2: Verify the request is coming from a valid PayFast domain
+    
+    # Security check 3: Confirm payment amount from PayFast is the same as amount in database
+    
+    # Security check 4: Perform server request to confirm details
+    
+    

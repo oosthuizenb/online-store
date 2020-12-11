@@ -8,6 +8,7 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 
 import hashlib
+import requests
 from urllib.parse import urlencode, quote_plus
 
 from .models import Product, Order, OrderItem, Address, Payment
@@ -192,17 +193,32 @@ def payment_notify(request):
     # Security check 1: Verify signature
     payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
     payment_data['passphrase'] = settings.PAYFAST_PASSHRASE
-    signature_string = urlencode(payment_data, quote_via=quote_plus)
     payfast_signature = payment_data.pop('signature')
+    signature_string = urlencode(payment_data, quote_via=quote_plus)
     generated_signature = hashlib.md5(signature_string.encode())
     if payfast_signature != generated_signature:
-        # If they signatures are unequal, return the 200 Header to indicate that the page is reachable. TODO: What happens if security check fails?
-        return HttpResponse()
+        # If they signatures are unequal, return the 200 Header to indicate that the page is reachable. TODO: What happens if security check fails? Return 404 for now..
+        return Http404()
     
     # Security check 2: Verify the request is coming from a valid PayFast domain
+    valid_hosts = settings.PAYFAST_DOMAINS
+    request_host = request.META['HTTP_HOST']
+    if not valid_hosts.__contains__(request_host):
+        return Http404()
     
     # Security check 3: Confirm payment amount from PayFast is the same as amount in database
+    payment = get_object_or_404(Payment, id=payment_data['m_payment_id'])
+    expected_amount = str(payment.amount)
+    requested_amount = payment_data['amount_gross']
+    if expected_amount != requested_amount: # TODO types...
+        return Http404()
     
     # Security check 4: Perform server request to confirm details
+    r = requests.get(settings.PAYFAST_QUERY_URL)
+    if r.content != 'VALID': # TODO make sure the r.content is correct way to go
+        return Http404()
     
+    # Return the default response with a 200 Header to indicate to PayFast the URL is reachable
+    # TODO check payment manually if security checks fail?
+    return HttpResponse()
     

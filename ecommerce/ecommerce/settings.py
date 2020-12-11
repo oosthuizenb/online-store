@@ -143,4 +143,15 @@ PAYFAST_MERCHANT_KEY = ""
 PAYFAST_RETURN_URL = ""
 PAYFAST_CANCEL_URL = ""
 PAYFAST_NOTIFY_URL = ""
+PAYFAST_DOMAINS = [
+        'www.payfast.co.za',
+        'sandbox.payfast.co.za',
+        'w1w.payfast.co.za',
+        'w2w.payfast.co.za',
+    ]
+PAYFAST_PASSPHRASE = 'password'
 
+if DEBUG == True:
+    PAYFAST_QUERY_URL = 'https://sandbox.payfast.co.za/​eng/query/validate'
+else:
+    PAYFAST_QUERY_URL = 'https://www.payfast.co.za/​eng/query/validate'

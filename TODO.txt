@@ -1,0 +1,9 @@
+# Refunds (PayFast can only do it manually from dashboard for credit card and Instant EFT)
+# Emails for order confirmation, newsletter etc.
+# Subscription
+# Guest cart with sessions
+# Accounts, place where user can see orders etc.
+# Digital items
+# Abandoned cart recovery
+# Other payment gateway like Stripe
+# Collecting credit card details

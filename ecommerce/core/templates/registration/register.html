@@ -20,13 +20,16 @@
           <div class="htc__login__register__wrap">
             <!-- Start Single Content -->
             <div id="login" role="tabpanel" class="single__tabs__panel tab-pane fade in active">
-
+              {{ form.non_field_errors }}
               <form class="login" method="post" action="{% url 'core:register' %}">
                 {% csrf_token %}
                 {{ form.email.errors }}
                 {{ form.email }}
                 {{ form.password.errors }}
                 {{ form.password }}
+                {{ form.password_confirm }}
+                {{ form.password_confirm.errors }}
+
                 {% comment %} <input type="text" placeholder="E-mail Address" name="email">
                 <input type="password" placeholder="Password" name="password"> {% endcomment %}
 
@@ -35,7 +38,7 @@
               </form>
 
               {# Assumes you setup the password_reset view in your URLconf #}
-              <p><a href="{% url 'password_reset' %}">Lost password?</a></p>
+              <p><a href="{% url 'core:password_reset' %}">Lost password?</a></p>
 
 
               <div class="tabs__checkbox">

@@ -12,7 +12,7 @@ class Product(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     price = models.FloatField()
-    image = models.ImageField(upload_to='products')
+    image = models.ImageField(upload_to='products', null=True, blank=True)
     publish_date = models.DateField(auto_now_add=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     
@@ -25,8 +25,8 @@ class Product(models.Model):
     
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    order_number = models.CharField(max_length=6, default='123')
-    placement_date = models.DateField()
+    order_number = models.CharField(max_length=6, default='123', unique=True)
+    placement_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     
     def __str__(self):

@@ -149,7 +149,7 @@ def checkout(request):
                 # If the address_id exists, then use that address for payment
                 address = get_object_or_404(Address, pk=address_id)
                 
-            payment = Payment(amount=order.total_price, item_name=f"Order #{order.id}", address=address, order=order)
+            payment = Payment(amount=order.total_price, address=address, order=order)
             payment.save()
             
             # Prepare data to be submitted to PayFast

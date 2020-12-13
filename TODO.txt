@@ -2,9 +2,12 @@
 # Emails for order confirmation, newsletter etc.
 # Subscription
 # Search functionality
+# User reviews
+# Reporting
 # Guest cart with sessions
 # Accounts, place where user can see orders etc.
 # Digital items
 # Abandoned cart recovery
+# Shipping stuff?
 # Other payment gateway like Stripe
 # Collecting credit card details

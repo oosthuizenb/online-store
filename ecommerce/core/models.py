@@ -89,3 +89,7 @@ class Payment(models.Model):
     
     def __str__(self):
         return f'{self.item_name} R{self.amount}'
+    
+    def save(self, *args, **kwargs):
+        self.item_name = f"Order #{self.order.id}"
+        super().save(*args, **kwargs)

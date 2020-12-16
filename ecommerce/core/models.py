@@ -80,11 +80,16 @@ class Address(models.Model):
         return f'{self.name} at {self.street_address}'
     
 class Payment(models.Model):
+    PAYMENT_STATUSES = [
+        ('P', 'PROCESSING'),
+        ('C', 'CANCELLED'),
+        ('S', 'SUCCESSFUL'),
+    ]
     amount = models.FloatField()
     item_name = models.CharField(max_length=20)
     address = models.ForeignKey(Address, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    successful = models.BooleanField(default=False)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUSES, default='P')
     refund = models.BooleanField(default=False)
     
     def __str__(self):

@@ -49,8 +49,25 @@ class AddressForm(ModelForm):
         self.fields['suburb'].widget.attrs.update({'placeholder': 'Suburb'})    
         self.fields['street_address'].widget.attrs.update({'placeholder': 'Street Address'})    
         self.fields['mobile_number'].widget.attrs.update({'placeholder': 'Mobile Number'})    
-        
+    
+    def clean_zip_code(self):
+        data = self.cleaned_data['zip_code']
+        if not data.isdigit():
+            raise ValidationError('Zip code can only contain digits.')
+        return data
+    
+    def clean_mobile_number(self):
+        data = self.cleaned_data['mobile_number']
+        # Mobile number can only contain digits
+        if not data.isdigit():
+            raise ValidationError('Mobile number can only contain digits.')
+        # Mobile number must have a length of 10 characters
+        if not len(data) == 10:
+            raise ValidationError('Mobile number must contain 10 digits.')
+        return data
+    
     class Meta:
         model = Address
         exclude = ['user']
         
+# TODO create payment form and maybe order form?

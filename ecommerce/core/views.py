@@ -17,7 +17,7 @@ from .forms import RegisterForm, AddressForm
 
 def index(request):
     products = Product.objects.all()
-    # TODO do something if there are no products..
+    # TODO do something if there are no products..in the template?
     context = {
         'products': products,
         'user': request.user,

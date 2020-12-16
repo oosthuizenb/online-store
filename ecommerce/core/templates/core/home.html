@@ -156,7 +156,7 @@
                         <div class="product__inner">
                           <div class="pro__thumb">
                             <a href="{% url 'core:product-detail' product.id %}">
-                              <img src="{{ product.image.url }}" alt="product images" style="width: auto; height: 180px;">
+                              <img src="{% if product.image %}{{ product.image.url }}{% else %} javascript:void(0){% endif %}" alt="product images" style="width: auto; height: 180px;">
                             </a>
                           </div>
                           <div class="product__hover__info">

@@ -28,7 +28,7 @@
                 {% for item in order_items %}
                 <tr>
                   <td class="product-thumbnail"><a href="{% url 'core:product-detail' item.item.id %}"><img
-                        src="{{ item.item.image.url }}" alt="product img" style="height: 100px; width:auto;" /></a>
+                        src="{% if item.item.image %}{{ item.item.image.url }}{% else %}javascript:void(0);{% endif %}" alt="product img" style="height: 100px; width:auto;" /></a>
                   </td>
                   <td class="product-name"><a
                       href="{% url 'core:product-detail' item.item.id %}">{{ item.item.title }}</a></td>

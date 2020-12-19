@@ -145,6 +145,12 @@ def checkout(request):
                     address = form.save(commit=False)
                     address.user = request.user
                     address.save()
+                else:
+                    existing_addresses = request.user.address_set.all()
+                    return render(request, "core/checkout.html", {
+                        'form': form,
+                        'existing_addresses': existing_addresses,
+                    })
             else:
                 # If the address_id exists, then use that address for payment
                 address = get_object_or_404(Address, pk=address_id)
@@ -226,6 +232,7 @@ def payment_notify(request):
     # Return the default response with a 200 Header to indicate to PayFast the URL is reachable and set payment status to True
     # TODO check payment manually if security checks fail?
     # TODO implement payment status
+    # TODO order status complete..
     payment.successful = True
     payment.save()
     return HttpResponse()

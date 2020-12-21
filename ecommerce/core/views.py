@@ -135,75 +135,81 @@ def checkout(request):
     order_qs = Order.objects.filter(user=request.user, is_active=True)
     if order_qs.exists():
         order = order_qs[0]
-        if request.method == 'POST':
-            # Check if address_id is None (this means the addresses radio value was not submitted, because the form disappears when new addres is selected), then create new address
-            address_id = request.POST.get('addresses')
-            if address_id is None:
-                form = AddressForm(request.POST)
-                # If the form data is valid then create new address
-                if form.is_valid():
-                    address = form.save(commit=False)
-                    address.user = request.user
-                    address.save()
+        order_items_qs = OrderItem.objects.filter(order=order)
+        if order_items_qs.exists():
+            if request.method == 'POST':
+                # Check if address_id is None (this means the addresses radio value was not submitted, because the form disappears when new addres is selected), then create new address
+                address_id = request.POST.get('addresses')
+                if address_id is None:
+                    form = AddressForm(request.POST)
+                    # If the form data is valid then create new address
+                    if form.is_valid():
+                        address = form.save(commit=False)
+                        address.user = request.user
+                        address.save()
+                    else:
+                        existing_addresses = request.user.address_set.all()
+                        return render(request, "core/checkout.html", {
+                            'form': form,
+                            'existing_addresses': existing_addresses,
+                        })
                 else:
-                    existing_addresses = request.user.address_set.all()
-                    return render(request, "core/checkout.html", {
-                        'form': form,
-                        'existing_addresses': existing_addresses,
-                    })
-            else:
-                # If the address_id exists, then use that address for payment
-                address = get_object_or_404(Address, pk=address_id)
+                    # If the address_id exists, then use that address for payment
+                    # TODO return form error instead of 404 maybe? or not... this can't happen if user does normal stuff..
+                    address = get_object_or_404(Address, pk=address_id)
+                    
+                payment = Payment(amount=order.total_price, address=address, order=order)
+                payment.save()
                 
-            payment = Payment(amount=order.total_price, address=address, order=order)
-            payment.save()
-            
-            # Prepare data to be submitted to PayFast
-            payment_data = {
-                'merchant_id': settings.PAYFAST_MERCHANT_ID,
-                'merchant_key': settings.PAYFAST_MERCHANT_KEY,
-                'return_url': settings.PAYFAST_RETURN_URL,
-                'cancel_url': settings.PAYFAST_CANCEL_URL,
-                'notify_url': settings.PAYFAST_NOTIFY_URL,
-                'name_first': address.name.strip(), #TODO improve client side validation
-                'cell_number': address.mobile_number.strip(),
-                'm_payment_id': payment.id,
-                'amount': payment.amount,
-                'item_name': payment.item_name,
-                # 'email_confirmation': 1, 1=on 0=off
-                'passphrase': settings.PAYFAST_PASSPHRASE,
-            }        
-            
-            # URL encode payment data and generate signature MD5 hash        
-            signature_string = urlencode(payment_data, quote_via=quote_plus)
-            signature = hashlib.md5(signature_string.encode())
-            payment_data['signature'] = signature.hexdigest()
+                # Prepare data to be submitted to PayFast
+                payment_data = {
+                    'merchant_id': settings.PAYFAST_MERCHANT_ID,
+                    'merchant_key': settings.PAYFAST_MERCHANT_KEY,
+                    'return_url': settings.PAYFAST_RETURN_URL,
+                    'cancel_url': settings.PAYFAST_CANCEL_URL,
+                    'notify_url': settings.PAYFAST_NOTIFY_URL,
+                    'name_first': address.name.strip(), #TODO improve client side validation, and when instance is saved, strip then...?
+                    'cell_number': address.mobile_number.strip(),
+                    'm_payment_id': payment.id,
+                    'amount': payment.amount,
+                    'item_name': payment.item_name,
+                    # 'email_confirmation': 1, 1=on 0=off
+                    'passphrase': settings.PAYFAST_PASSPHRASE,
+                }        
+                
+                # URL encode payment data and generate signature MD5 hash        
+                signature_string = urlencode(payment_data, quote_via=quote_plus)
+                signature = hashlib.md5(signature_string.encode())
+                payment_data['signature'] = signature.hexdigest()
 
-            # Render template showing payment methods
-            return render(request, "core/payments.html", {
-                'payment_data': payment_data, 'payfast_url': settings.PAYFAST_URL,
-                })
-            
-        # If GET or any other method then create unbound form
+                # Render template showing payment methods
+                return render(request, "core/payments.html", {
+                    'payment_data': payment_data, 'payfast_url': settings.PAYFAST_URL,
+                    })
+                
+            # If GET or any other method then create unbound form
+            else:
+                # Check if user has existing address
+                existing_addresses = request.user.address_set.all()
+                form = AddressForm()
+                
+            return render(request, "core/checkout.html", {
+                'form': form,
+                'existing_addresses': existing_addresses,
+            })
         else:
-            # Check if user has existing address
-            existing_addresses = request.user.address_set.all()
-            form = AddressForm()
-            
-        return render(request, "core/checkout.html", {
-            'form': form,
-            'existing_addresses': existing_addresses,
-        })
+            return redirect('core:cart')
     else:
         # TODO:If the order does not exist, maybe show a message?
-        raise Http404()
+        return redirect('core:cart')
     
+   #TODO only POST method.. 
 def payment_notify(request):
     # Return 200 Header to PayFast after 4 security checks:
     
     # Security check 1: Verify signature
     payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
-    payment_data['passphrase'] = settings.PAYFAST_PASSHRASE
+    payment_data['passphrase'] = settings.PAYFAST_PASSPHRASE
     payfast_signature = payment_data.pop('signature')
     signature_string = urlencode(payment_data, quote_via=quote_plus)
     generated_signature = hashlib.md5(signature_string.encode())

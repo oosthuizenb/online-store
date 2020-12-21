@@ -1,10 +1,12 @@
+import hashlib
 from django import setup
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import Product, Order, OrderItem, Address, Payment
-from .forms import RegisterForm
+from .forms import AddressForm, RegisterForm
 
 class IndexTest(TestCase):
     def test_view_url_exists(self):
@@ -498,6 +500,11 @@ class CheckoutTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        cls.product_1.save()
+        cls.product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=5, category='BK')
+        cls.product_2.save()
+
 
     def test_view_url_accessible_by_name_not_logged_in(self):
         response = self.client.get(reverse('core:checkout'))
@@ -507,25 +514,380 @@ class CheckoutTest(TestCase):
         response = self.client.get(reverse('core:checkout'))
         self.assertRedirects(response, reverse('core:login') + '?next=/checkout/')
 
-    def test_404_if_order_does_not_exist(self):
+    def test_redirect_to_cart_if_order_does_not_exist(self):
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:checkout'))
+        self.assertRedirects(response, reverse('core:cart'))
+
+    def test_redirect_to_cart_if_order_exists_but_no_order_items(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertRedirects(response, reverse('core:cart'))
+
+    def test_uses_correct_template(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/checkout.html')
+
+    def test_context_contains_address_form_with_get(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertIsInstance(response.context['form'], AddressForm)
+
+    def test_address_form_is_unbound_with_get(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertFalse(response.context['form'].is_bound)
+
+    def test_context_contains_one_existing_address_with_get(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('existing_addresses', response.context)
+        self.assertEqual(len(response.context['existing_addresses']), 1)
+        self.assertIsInstance(response.context['existing_addresses'][0], Address)
+
+    def test_context_contains_zero_existing_address_with_get(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:checkout'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('existing_addresses', response.context)
+        self.assertEqual(len(response.context['existing_addresses']), 0)
+
+    def test_new_address_form_is_bound(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertTrue(response.context['form'].is_bound)
+
+    def test_correct_template_with_invalid_data(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed('core/checkout.html')
+
+    def test_new_address_form_invalid_with_empty_data(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertFormError(response, 'form', 'name', 'This field is required.')
+        self.assertFormError(response, 'form', 'country', 'This field is required.')
+        self.assertFormError(response, 'form', 'province', 'This field is required.')
+        self.assertFormError(response, 'form', 'zip_code', 'This field is required.')
+        self.assertFormError(response, 'form', 'city', 'This field is required.')
+        self.assertFormError(response, 'form', 'street_address', 'This field is required.')
+        self.assertFormError(response, 'form', 'mobile_number', 'This field is required.')
+
+    def test_new_address_form_invalid_zip_code_non_digits(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'zip_code': 'asd12'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertFormError(response, 'form', 'zip_code', 'Zip code can only contain digits.')
+
+    def test_new_address_form_invalid_mobile_number_non_digits(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'mobile_number': 'asdfgtrewq'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertFormError(response, 'form', 'mobile_number', 'Mobile number can only contain digits.')
+
+    def test_new_address_form_invalid_mobile_number_not_10_digits(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'mobile_number': '123456789'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertFormError(response, 'form', 'mobile_number', 'Mobile number must contain 10 digits.')
+
+    def test_new_address_invalid_form_context_contains_one_existing_addresses(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['form'].is_valid())
+        self.assertIn('existing_addresses', response.context)
+        self.assertEqual(len(response.context['existing_addresses']), 1)
+        self.assertIsInstance(response.context['existing_addresses'][0], Address)
+
+    def test_new_address_saved(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Address.objects.count(), 1)
+
+    def test_new_address_related_to_user(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Address.objects.filter(user=self.test_user).count(), 1)
+
+    def test_404_for_existing_address_invalid_address_id(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'addresses': 2})
         self.assertEqual(response.status_code, 404)
 
-    # order exists but no order items GET/POST(redirect to cart with message), 
-    # GET: order exist with order items context contains form, context contains existing_addresses with count 0, context contains existing_addresses with count 1, 
-    # POST: address_id is None (form does not contain addresses) 
-    # then test valid->
-    # address save->
-    # address related to user,
-    # invalid->
-    # form with each error->
-    # existing_addresses. 
-    # address_id exists test get/404. 
-    # Test payment creation with valid and invalid data. 
-    # Test payment data fields(consider payment form for validation). 
-    # Test signature string valid/invalid cases. 
-    # Test that signature is part of payment_data. 
-    # Test context contains payment_data, 
-    # context contains payfast url.
-    
+    def test_payment_creation_with_existing_address(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        address = Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        address.save()
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'addresses': 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Payment.objects.count(), 1)
+        self.assertEqual(Payment.objects.filter(address=address).count(), 1)
+        self.assertEqual(Payment.objects.filter(order=order).count(), 1)
+        self.assertEqual(Payment.objects.filter(amount=order.total_price).count(), 1)
+
+    def test_payment_creation_with_new_address(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Payment.objects.count(), 1)
+        self.assertEqual(Payment.objects.filter(address=Address.objects.all()[0]).count(), 1)
+        self.assertEqual(Payment.objects.filter(order=order).count(), 1)
+        self.assertEqual(Payment.objects.filter(amount=order.total_price).count(), 1)
+
+    def test_initial_payment_data_with_existing_address(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        address = Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        address.save()
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {'addresses': 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('payment_data', response.context)
+        payment_data = response.context['payment_data']
+        payment = Payment.objects.filter(address=address)[0]
+        self.assertEqual(payment_data['merchant_id'], settings.PAYFAST_MERCHANT_ID)
+        self.assertEqual(payment_data['merchant_key'], settings.PAYFAST_MERCHANT_KEY)
+        self.assertEqual(payment_data['return_url'], settings.PAYFAST_RETURN_URL)
+        self.assertEqual(payment_data['cancel_url'], settings.PAYFAST_CANCEL_URL)
+        self.assertEqual(payment_data['notify_url'], settings.PAYFAST_NOTIFY_URL)
+        self.assertEqual(payment_data['name_first'], address.name.strip())
+        self.assertEqual(payment_data['cell_number'], address.mobile_number.strip())
+        self.assertEqual(payment_data['m_payment_id'], payment.id)
+        self.assertEqual(payment_data['amount'], payment.amount)
+        self.assertEqual(payment_data['item_name'], payment.item_name)
+        self.assertEqual(payment_data['passphrase'], settings.PAYFAST_PASSPHRASE)
+
+    def test_initial_payment_data_with_new_address(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('payment_data', response.context)
+        payment_data = response.context['payment_data']
+        address = Address.objects.get(pk=1)
+        payment = Payment.objects.filter(address=address)[0]
+        self.assertEqual(payment_data['merchant_id'], settings.PAYFAST_MERCHANT_ID)
+        self.assertEqual(payment_data['merchant_key'], settings.PAYFAST_MERCHANT_KEY)
+        self.assertEqual(payment_data['return_url'], settings.PAYFAST_RETURN_URL)
+        self.assertEqual(payment_data['cancel_url'], settings.PAYFAST_CANCEL_URL)
+        self.assertEqual(payment_data['notify_url'], settings.PAYFAST_NOTIFY_URL)
+        self.assertEqual(payment_data['name_first'], address.name.strip())
+        self.assertEqual(payment_data['cell_number'], address.mobile_number.strip())
+        self.assertEqual(payment_data['m_payment_id'], payment.id)
+        self.assertEqual(payment_data['amount'], payment.amount)
+        self.assertEqual(payment_data['item_name'], payment.item_name)
+        self.assertEqual(payment_data['passphrase'], settings.PAYFAST_PASSPHRASE)
+
+    def test_valid_signature_string(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John Doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('payment_data', response.context)
+        payment_data = response.context['payment_data']
+        payment = Payment.objects.all()[0]
+        signature_string = f'merchant_id={settings.PAYFAST_MERCHANT_ID}&merchant_key={settings.PAYFAST_MERCHANT_KEY}&return_url={settings.PAYFAST_RETURN_URL}&cancel_url={settings.PAYFAST_CANCEL_URL}&notify_url={settings.PAYFAST_NOTIFY_URL}&name_first=John+Doe&cell_number=1234567890&m_payment_id=1&amount=5.0&item_name=Order+%231&passphrase={settings.PAYFAST_PASSPHRASE}'
+        signature = hashlib.md5(signature_string.encode())
+        self.assertEqual(signature.hexdigest(), payment_data['signature'])
+
+    def test_payment_data_contains_signature_string(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John Doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('payment_data', response.context)
+        self.assertIn('signature', response.context['payment_data'])
+
+    def test_context_contains_payment_data(self):
+        order = Order.objects.create(user=self.test_user, order_number="1")
+        order.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:checkout'), {
+            'name': 'John Doe',
+            'country': 'NZ',
+            'province': 'G',
+            'zip_code': '12345',
+            'city': 'Cape Town',
+            'street_address': '15 Roarkus road',
+            'mobile_number': '1234567890'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('payment_data', response.context)
+        self.assertIn('payfast_url', response.context)
+        self.assertEqual(response.context['payfast_url'], settings.PAYFAST_URL)
+
+#TODO add logging...
+class PaymentNotifyTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        cls.product_1.save()
+        cls.order = Order.objects.create(user=cls.test_user, order_number="1")
+        cls.order.save()
+        OrderItem.objects.create(item=cls.product_1, order=cls.order, quantity=1)
+        cls.address = Address.objects.create(user=cls.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+        cls.address.save()
+        cls.payment = Payment(amount=cls.order.total_price, address=cls.address, order=cls.order)
+
+    def test_404_signature_verification_fails(self):
+        pass
+
+    def test_404_invalid_host(self):
+        pass
+
+    def test_404_wrong_payment_amount(self):
+        pass
+
+    def test_404_invalid_payfast_response(self):
+        pass
+
+    def test_200_header_valid_payment_notification(self):
+        pass
+
+    def test_payment_status_successful(self):
+        pass
+
+    def test_order_status_placed(self):
+        pass
+    #Signature verification valid data
+    #signature verify invalid data 404
+    #valid host
+    #invalid host 404
+    #payment amount confirm in database
+    #payment amount wrong 404
+    #payfast server request confirm valid
+    #payfast server request invalid 404
+    #successful verification -> payment status is successful
+    #successful verification -> order status is not active, but placed
+    #confirm 200 Header

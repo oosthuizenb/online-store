@@ -175,7 +175,7 @@ class PaymentTests(TestCase):
         payment = Payment.objects.create(amount=50, address=address, order=order)
         payment.save()
         expected_payment_status = 'PROCESSING'
-        self.assertEqual(payment.get_payment_status_display(), expected_payment_status)
+        self.assertEqual(payment.get_status_display(), expected_payment_status)
         
         
         

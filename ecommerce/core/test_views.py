@@ -1,9 +1,13 @@
+import datetime
 import hashlib
+from urllib.parse import urlencode, quote_plus
+
 from django import setup
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import Product, Order, OrderItem, Address, Payment
 from .forms import AddressForm, RegisterForm
@@ -847,47 +851,110 @@ class CheckoutTest(TestCase):
         self.assertEqual(response.context['payfast_url'], settings.PAYFAST_URL)
 
 #TODO add logging...
-class PaymentNotifyTest(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
-        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        cls.product_1.save()
-        cls.order = Order.objects.create(user=cls.test_user, order_number="1")
-        cls.order.save()
-        OrderItem.objects.create(item=cls.product_1, order=cls.order, quantity=1)
-        cls.address = Address.objects.create(user=cls.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
-        cls.address.save()
-        cls.payment = Payment(amount=cls.order.total_price, address=cls.address, order=cls.order)
+# class PaymentNotifyTest(TestCase):
+#     @classmethod
+#     def setUpTestData(cls):
+#         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+#         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5.0, category='CP')
+#         cls.product_1.save()
+#         cls.order = Order.objects.create(user=cls.test_user, order_number="1")
+#         cls.order.save()
+#         OrderItem.objects.create(item=cls.product_1, order=cls.order, quantity=1)
+#         cls.address = Address.objects.create(user=cls.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
+#         cls.address.save()
+#         cls.payment = Payment(amount=cls.order.total_price, address=cls.address, order=cls.order)
+#         cls.payment.save()
+#         cls.payment_data = {
+#                     'm_payment_id': cls.payment.id,
+#                     'pf_payment_id': '1089250',
+#                     'payment_status': 'COMPLETE',
+#                     'item_name': cls.payment.item_name,
+#                     'amount_gross': cls.payment.amount,
+#                     'amount_fee': cls.payment.amount * 0.15,
+#                     'amount_net': cls.payment.amount * 0.85,
+#                     'name_first': cls.address.name.strip(), #TODO improve client side validation, and when instance is saved, strip then...?
+#                     'cell_number': cls.address.mobile_number.strip(),
+#                     'merchant_id': settings.PAYFAST_MERCHANT_ID,
+#                     # 'email_confirmation': 1, 1=on 0=off
+#                     'passphrase': settings.PAYFAST_PASSPHRASE,
+#                 }
 
-    def test_404_signature_verification_fails(self):
-        pass
+#     def test_url_accessible_by_name(self):
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
 
-    def test_404_invalid_host(self):
-        pass
+#     def test_payment_status_unsuccessful_signature_verification_fails(self):
+#         self.payment_data['signature'] = hashlib.md5('test=letsgotest'.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(self.payment.status, 'U')
 
-    def test_404_wrong_payment_amount(self):
-        pass
+#     def test_payment_status_unsuccessful_invalid_host(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(self.payment.status, 'U')
 
-    def test_404_invalid_payfast_response(self):
-        pass
+#     def test_payment_status_unsuccessful_wrong_payment_amount(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         self.payment_data['amount'] = 10.0
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(self.payment.status, 'U')
 
-    def test_200_header_valid_payment_notification(self):
-        pass
+#     def test_payment_status_unsuccessful_invalid_payfast_response(self):
+#         pass
 
-    def test_payment_status_successful(self):
-        pass
+#     def test_200_header_valid_payment_notification(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
 
-    def test_order_status_placed(self):
-        pass
-    #Signature verification valid data
-    #signature verify invalid data 404
-    #valid host
-    #invalid host 404
-    #payment amount confirm in database
-    #payment amount wrong 404
-    #payfast server request confirm valid
-    #payfast server request invalid 404
-    #successful verification -> payment status is successful
-    #successful verification -> order status is not active, but placed
-    #confirm 200 Header
+#     def test_payment_status_successful(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertEqual(self.payment.status, 'S')
+
+#     def test_order_is_no_longer_active_when_payment_is_successful(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertFalse(self.order.is_active)
+
+#     def test_order_placement_date(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertFalse(self.order.is_active)
+#         self.assertEqual(self.order.placement_date, datetime.date.today())
+
+#     def test_order_is_active_signature_verification_fails(self):
+#         self.payment_data['signature'] = hashlib.md5('test=letsgotest'.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertTrue(self.order.is_active)
+
+#     def test_order_is_active_invalid_host(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertTrue(self.order.is_active)
+
+#     def test_order_is_active_wrong_payment_amount(self):
+#         signature_string = urlencode(self.payment_data, quote_via=quote_plus)
+#         self.payment_data['signature'] = hashlib.md5(signature_string.encode()).hexdigest()
+#         self.payment_data['amount'] = 10.0
+#         response = self.client.post(reverse('core:payment-notify'), self.payment_data)
+#         self.assertEqual(response.status_code, 200)
+#         self.assertTrue(self.order.is_active)
+
+#     def test_order_is_active_invalid_payfast_response(self):
+#         pass

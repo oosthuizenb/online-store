@@ -84,12 +84,13 @@ class Payment(models.Model):
         ('P', 'PROCESSING'),
         ('C', 'CANCELLED'),
         ('S', 'SUCCESSFUL'),
+        ('U', 'UNSUCCESSFUL'),
     ]
     amount = models.FloatField()
     item_name = models.CharField(max_length=20)
     address = models.ForeignKey(Address, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUSES, default='P')
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUSES, default='P')
     refund = models.BooleanField(default=False)
     
     def __str__(self):

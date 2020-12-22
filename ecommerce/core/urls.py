@@ -13,6 +13,8 @@ urlpatterns = [
     path('cart-remove-single/<int:product_id>/', views.remove_single_from_cart, name='cart-remove-single'),
     path('checkout/', views.checkout, name='checkout'),
     path('payment-notify/', views.payment_notify, name='payment-notify'),
+    path('payment-return/', views.payment_return, name='payment-return'),
+    path('payment-cancel/', views.payment_cancel, name='payment-cancel'),
     path('register/', views.register, name ='register'),
     path('accounts/login/', auth_views.LoginView.as_view(authentication_form=CustomAuthenticationForm), name='login'),
     path('accounts/', include('django.contrib.auth.urls')),

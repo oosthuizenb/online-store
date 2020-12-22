@@ -1,3 +1,4 @@
+import datetime
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate
@@ -206,40 +207,55 @@ def checkout(request):
    #TODO only POST method.. 
 def payment_notify(request):
     # Return 200 Header to PayFast after 4 security checks:
+    payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
+    payment = get_object_or_404(Payment, id=payment_data['m_payment_id'])
+    payment.status = 'S'
     
     # Security check 1: Verify signature
-    payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
     payment_data['passphrase'] = settings.PAYFAST_PASSPHRASE
     payfast_signature = payment_data.pop('signature')
     signature_string = urlencode(payment_data, quote_via=quote_plus)
     generated_signature = hashlib.md5(signature_string.encode())
     if payfast_signature != generated_signature:
-        # If they signatures are unequal, return the 200 Header to indicate that the page is reachable. TODO: What happens if security check fails? Return 404 for now..
-        return Http404()
+        # If they signatures are unequal, return the 200 Header to indicate that the page is reachable.
+        payment.status = 'U'
     
     # Security check 2: Verify the request is coming from a valid PayFast domain
     valid_hosts = settings.PAYFAST_DOMAINS
-    request_host = request.META['HTTP_HOST']
+    request_host = request.META['SERVER_NAME']
     if not valid_hosts.__contains__(request_host):
-        return Http404()
+        payment.status = 'U'
     
     # Security check 3: Confirm payment amount from PayFast is the same as amount in database
-    payment = get_object_or_404(Payment, id=payment_data['m_payment_id'])
     expected_amount = str(payment.amount)
     requested_amount = payment_data['amount_gross']
     if expected_amount != requested_amount: # TODO types...
-        return Http404()
+        payment.status = 'U'
     
     # Security check 4: Perform server request to confirm details
-    r = requests.get(settings.PAYFAST_QUERY_URL)
+    payment_data['signature'] = generated_signature
+    payfast_parameter = urlencode(payment_data, quote_via=quote_plus)
+    r = requests.post(settings.PAYFAST_QUERY_URL, data=payfast_parameter)
     if r.content != 'VALID': # TODO make sure the r.content is correct way to go
-        return Http404()
+        payment.status = 'U'
     
-    # Return the default response with a 200 Header to indicate to PayFast the URL is reachable and set payment status to True
-    # TODO check payment manually if security checks fail?
-    # TODO implement payment status
-    # TODO order status complete..
-    payment.successful = True
+    
     payment.save()
+    if payment.status == 'S':
+        # Place order if payment is successful. TODO: Maybe change the business logic?
+        payment.order.placement_date = datetime.date.today
+        payment.order.is_active = False
+        payment.order.save()
+
+    # Return 200 Header for PayFast    
     return HttpResponse()
+    
+
+def payment_cancel(request):
+    print('cancelled')
+    return redirect('core:index')
+
+def payment_return(request):
+    print('returned')
+    return redirect('core:index')
     

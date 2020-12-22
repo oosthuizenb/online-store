@@ -21,13 +21,13 @@
                 <p>Existing addresses:</p>
                 {% for address in existing_addresses %}
                 <div class="single-checkout-box">
-                  <input type="radio" name="addresses" id="old-{{ address.pk }}" value="{{ address.pk }}" checked>
+                  <input type="radio" name="addresses" id="old-{{ address.pk }}" value="{{ address.pk }}">
                   <label for="old-{{ address.pk }}">{{ address.street_address }}, {{ address.city }},
                     {{ address.zip_code }}</label>
                 </div>
                 {% endfor %}
                 <div class="single-checkout-box">
-                  <input type="radio" name="addresses" id="new-address" value="0">
+                  <input type="radio" name="addresses" id="new-address" value="0" checked>
                   <label for="new-address">Use new address</label>
                 </div>
                 <div class="single-checkout-box submit-existing-address"><input type="submit" value="Proceed to payment"></div>
@@ -124,7 +124,7 @@
   // Hides new address block when selecting existing address
   var newAddressBlock = $(".add-new-address");
   var existingAddressBlock = $(".submit-existing-address");
-  newAddressBlock.hide();
+  // newAddressBlock.hide();
   $("input[name='addresses']").on("click", function (event) {
     if ($(this).attr("value") == 0) {
       newAddressBlock.show();

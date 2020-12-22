@@ -1,13 +1,13 @@
-# Refunds (PayFast can only do it manually from dashboard for credit card and Instant EFT)
-# Emails for order confirmation, newsletter etc.
-# Subscription
-# Search functionality
-# User reviews
-# Reporting
-# Guest cart with sessions
-# Accounts, place where user can see orders etc.
-# Digital items
-# Abandoned cart recovery
-# Shipping stuff?
-# Other payment gateway like Stripe
-# Collecting credit card details
+P1# Refunds (PayFast can only do it manually from dashboard for credit card and Instant EFT)
+P3# 1 Emails for order confirmation, newsletter etc.
+P2# 2 Subscription
+P3# 3 Search functionality
+P3# 1 User reviews
+P3# 3 Reporting(including admin dashboard)
+P3# 2 Guest cart with sessions
+P3# 2 Accounts(custom user model and auth?maybe use allauth,oath etc), place where user can see orders etc.
+P2# 3 Digital items
+P2# 2 Abandoned cart recovery
+P0# Shipping stuff?
+P0# Other payment gateway like Stripe
+P0# Collecting credit card details

@@ -26,7 +26,7 @@ SECRET_KEY = 'b8-m^dsf_5a_a^4s$sx@79_g*g=1$#hy+ya%w%yt2i0q^ydc%_'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-NGROK_HOST = '14c2593ee6cd.ngrok.io'
+NGROK_HOST = 'a8a9997cedfe.ngrok.io'
 ALLOWED_HOSTS = ['127.0.0.1', NGROK_HOST]
 
 
@@ -138,12 +138,12 @@ MESSAGE_TAGS = {
 }
 
 # PayFast settings
-PAYFAST_URL = "https://sandbox.payfast.co.za"
-PAYFAST_MERCHANT_ID = ""
-PAYFAST_MERCHANT_KEY = ""
-PAYFAST_RETURN_URL = '' #NGROK_HOST + '/payment-return/'
-PAYFAST_CANCEL_URL = '' #NGROK_HOST + '/payment-cancel/'
-PAYFAST_NOTIFY_URL = '' #NGROK_HOST + '/payment-notify/'
+PAYFAST_URL = "https://sandbox.payfast.co.za/eng/process"
+PAYFAST_MERCHANT_ID = "10005272"
+PAYFAST_MERCHANT_KEY = "y7t77sn8isy5n"
+PAYFAST_RETURN_URL = 'https://' + NGROK_HOST + '/payment-return/'
+PAYFAST_CANCEL_URL = 'https://' + NGROK_HOST + '/payment-cancel/'
+PAYFAST_NOTIFY_URL = 'https://' + NGROK_HOST + '/payment-notify/'
 PAYFAST_DOMAINS = [
         'www.payfast.co.za',
         'sandbox.payfast.co.za',

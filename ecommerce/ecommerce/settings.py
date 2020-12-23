@@ -26,7 +26,7 @@ SECRET_KEY = 'b8-m^dsf_5a_a^4s$sx@79_g*g=1$#hy+ya%w%yt2i0q^ydc%_'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-NGROK_HOST = 'a8a9997cedfe.ngrok.io'
+NGROK_HOST = '9f549858ddb3.ngrok.io'
 ALLOWED_HOSTS = ['127.0.0.1', NGROK_HOST]
 
 
@@ -145,10 +145,10 @@ PAYFAST_RETURN_URL = 'https://' + NGROK_HOST + '/payment-return/'
 PAYFAST_CANCEL_URL = 'https://' + NGROK_HOST + '/payment-cancel/'
 PAYFAST_NOTIFY_URL = 'https://' + NGROK_HOST + '/payment-notify/'
 PAYFAST_DOMAINS = [
-        'www.payfast.co.za',
-        'sandbox.payfast.co.za',
-        'w1w.payfast.co.za',
-        'w2w.payfast.co.za',
+        'https://www.payfast.co.za',
+        'https://sandbox.payfast.co.za',
+        'https://w1w.payfast.co.za',
+        'https://w2w.payfast.co.za',
     ]
 PAYFAST_PASSPHRASE = 'password'
 
@@ -156,3 +156,11 @@ if DEBUG == True:
     PAYFAST_QUERY_URL = 'https://sandbox.payfast.co.za/​eng/query/validate'
 else:
     PAYFAST_QUERY_URL = 'https://www.payfast.co.za/​eng/query/validate'
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'berrieswebdev@gmail.com'
+EMAIL_HOST_PASSWORD = 'agVwgZ2WiJK7a76'

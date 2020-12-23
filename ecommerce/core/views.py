@@ -5,9 +5,11 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
 from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
 import hashlib
 import requests
@@ -24,6 +26,9 @@ def index(request):
         'user': request.user,
     }
     return render(request, "core/home.html", context)
+
+def search(request):
+    return render(request, "core/home.html")
 
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
@@ -67,7 +72,7 @@ def view_cart(request):
     return render(request, "core/cart.html")
 
 @login_required
-def add_to_cart(request, product_id):
+def add_to_cart(request, product_id, redirect_url):
     product = get_object_or_404(Product, pk=product_id)
     order_qs = Order.objects.filter(user=request.user, is_active=True)
     if order_qs.exists():
@@ -89,6 +94,9 @@ def add_to_cart(request, product_id):
         order_item.save()
         messages.success(request, 'The item has been added to your cart.')
 
+    if redirect_url == 'product-detail':
+        return redirect('core:product-detail', product_id=product_id)
+    
     return redirect('core:cart')
 
 @login_required
@@ -175,7 +183,7 @@ def checkout(request):
                     'amount': payment.amount,
                     'item_name': payment.item_name,
                     # 'email_confirmation': 1, 1=on 0=off
-                    'passphrase': settings.PAYFAST_PASSPHRASE,
+                    # 'passphrase': settings.PAYFAST_PASSPHRASE,
                 }        
                 
                 # URL encode payment data and generate signature MD5 hash        
@@ -204,7 +212,8 @@ def checkout(request):
         # TODO:If the order does not exist, maybe show a message?
         return redirect('core:cart')
     
-   #TODO only POST method.. 
+#TODO only POST method.. 
+@csrf_exempt
 def payment_notify(request):
     # Return 200 Header to PayFast after 4 security checks:
     payment_data = request.POST.dict() # TODO: Check if you can straight use QueryDict.urlencode()
@@ -212,23 +221,23 @@ def payment_notify(request):
     payment.status = 'S'
     
     # Security check 1: Verify signature
-    payment_data['passphrase'] = settings.PAYFAST_PASSPHRASE
+    # payment_data['passphrase'] = settings.PAYFAST_PASSPHRASE
     payfast_signature = payment_data.pop('signature')
     signature_string = urlencode(payment_data, quote_via=quote_plus)
-    generated_signature = hashlib.md5(signature_string.encode())
+    generated_signature = hashlib.md5(signature_string.encode()).hexdigest()
     if payfast_signature != generated_signature:
         # If they signatures are unequal, return the 200 Header to indicate that the page is reachable.
         payment.status = 'U'
     
     # Security check 2: Verify the request is coming from a valid PayFast domain
     valid_hosts = settings.PAYFAST_DOMAINS
-    request_host = request.META['SERVER_NAME']
+    request_host = request.headers['REFERER']
     if not valid_hosts.__contains__(request_host):
         payment.status = 'U'
     
     # Security check 3: Confirm payment amount from PayFast is the same as amount in database
-    expected_amount = str(payment.amount)
-    requested_amount = payment_data['amount_gross']
+    expected_amount = payment.amount
+    requested_amount = float(payment_data['amount_gross'])
     if expected_amount != requested_amount: # TODO types...
         payment.status = 'U'
     
@@ -247,15 +256,25 @@ def payment_notify(request):
         payment.order.is_active = False
         payment.order.save()
 
+        email_title = f'{payment.item_name} confirmation'
+        email_message = f'Dear {payment.order.user.username} \n\nYour order has been placed.'
+
+        # send_mail(email_title, email_message, settings.EMAIL_HOST_USER, ['berrieswebdev@gmail.com'], fail_silently=False)
+
+
     # Return 200 Header for PayFast    
     return HttpResponse()
     
 
 def payment_cancel(request):
     print('cancelled')
+    # send_mail('Order payment cancelled', 'Your payment was cancelled. You can try again.', settings.EMAIL_HOST_USER, ['berrieswebdev@gmail.com'], fail_silently=False)
+    messages.error(request, 'The payment has been cancelled. If you still want to place the order, you need to complete payment.')
     return redirect('core:index')
 
 def payment_return(request):
     print('returned')
+    # send_mail('Order confirmation', 'Your order has been placed.', settings.EMAIL_HOST_USER, ['berrieswebdev@gmail.com'], fail_silently=False)
+    messages.success(request, 'The order has been placed. You will soon receive a payment confirmation email.')
     return redirect('core:index')
     

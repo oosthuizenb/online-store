@@ -145,7 +145,7 @@
             </div>
           </div>
           <ul class="pro__dtl__btn">
-            <li class="buy__now__btn"><a href="{% url 'core:cart-add' product.pk %}">Add to cart</a></li>
+            <li class="buy__now__btn"><a href="{% url 'core:cart-add' product.pk 'product-detail' %}">Add to cart</a></li>
             <li><a href="#"><span class="ti-heart"></span></a></li>
             <li><a href="#"><span class="ti-email"></span></a></li>
           </ul>

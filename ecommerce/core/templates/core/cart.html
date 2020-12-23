@@ -35,7 +35,7 @@
                   <td class="product-price"><span class="amount">R{{ item.item.price}}</span></td>
                   <td class="product-quantity">
                     <div class="buttons-cart">
-                      <a href="{% url 'core:cart-add' item.item.id %}">+</a>
+                      <a href="{% url 'core:cart-add' item.item.id 'cart' %}">+</a>
                       <input type="button" value="{{ item.quantity }}">
                       <a href="{% url 'core:cart-remove-single' item.item.id %}">-</a>
                     </div>

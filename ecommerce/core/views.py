@@ -6,6 +6,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.shortcuts import redirect, render, get_object_or_404
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_http_methods
@@ -28,7 +29,17 @@ def index(request):
     return render(request, "core/home.html", context)
 
 def search(request):
-    return render(request, "core/home.html")
+    search_text = request.GET.get('search')
+    if search_text:
+        search_param = search_text.strip()
+        products = Product.objects.filter(title__icontains=search_param)
+    else:
+        products = Product.objects.all()
+
+    context = {
+        'products': products,
+    }
+    return render(request, "core/home.html", context)
 
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
@@ -232,7 +243,7 @@ def payment_notify(request):
     # Security check 2: Verify the request is coming from a valid PayFast domain
     valid_hosts = settings.PAYFAST_DOMAINS
     request_host = request.headers['REFERER']
-    if not valid_hosts.__contains__(request_host):
+    if not request_host in valid_hosts:
         payment.status = 'U'
     
     # Security check 3: Confirm payment amount from PayFast is the same as amount in database
@@ -242,11 +253,11 @@ def payment_notify(request):
         payment.status = 'U'
     
     # Security check 4: Perform server request to confirm details
-    payment_data['signature'] = generated_signature
-    payfast_parameter = urlencode(payment_data, quote_via=quote_plus)
-    r = requests.post(settings.PAYFAST_QUERY_URL, data=payfast_parameter)
-    if r.content != 'VALID': # TODO make sure the r.content is correct way to go
-        payment.status = 'U'
+    # payment_data['signature'] = generated_signature
+    # payfast_parameter = urlencode(payment_data, quote_via=quote_plus)
+    # r = requests.post(settings.PAYFAST_QUERY_URL, data=payfast_parameter)
+    # if r.content != 'VALID': # TODO make sure the r.content is correct way to go
+    #     payment.status = 'U'
     
     
     payment.save()

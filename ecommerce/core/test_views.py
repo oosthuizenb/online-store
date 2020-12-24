@@ -47,10 +47,13 @@ class IndexTest(TestCase):
 
 class ProductSearchTest(TestCase):
     @classmethod
-    def setUpClass(cls):
-        Product.objects.create(title=f'Bike', description=f'Product Test', price=50, category='CP')
-        Product.objects.create(title=f'Bicycle', description=f'Product Test 2', price=50, category='BK')
-        Product.objects.create(title=f'Louis Vutton', description=f'Product Test 3', price=50, category='CG')
+    def setUpTestData(cls):
+        Product.objects.create(title='Bike', description='Product Test', price=50, category='CP')
+        Product.objects.create(title='Bicycle', description='Product Test 2', price=50, category='BK')
+        Product.objects.create(title='Louis Vutton', description='Product Test 3', price=50, category='CG')
+        Product.objects.create(title='Louis Vuttelli', description='Product Test 4', price=50, category='CG')
+        Product.objects.create(title='louis Masciani', description='Product Test 5', price=50, category='CG')
+        Product.objects.create(title='Communication device', description='Product Test 6', price=500.0, category='CG')
 
     def test_view_url_exists(self):
         response = self.client.get('/search/')
@@ -72,7 +75,7 @@ class ProductSearchTest(TestCase):
         self.assertTemplateUsed(response, 'core/home.html')
         self.assertIn('products', response.context)
         self.assertEqual(len(response.context['products']), 1)
-        self.assertEqual(response.context['products'][0], Product.objects.filter(description='Product Test'))
+        self.assertIn(Product.objects.get(description='Product Test'), response.context['products'])
 
     def test_search_with_part_title_case_insensitive_one_matching_product(self):
         get_parameters = {'search': 'bik'}
@@ -81,7 +84,7 @@ class ProductSearchTest(TestCase):
         self.assertTemplateUsed(response, 'core/home.html')
         self.assertIn('products', response.context)
         self.assertEqual(len(response.context['products']), 1)
-        self.assertEqual(response.context['products'][0], Product.objects.filter(description='Product Test'))
+        self.assertIn(Product.objects.get(description='Product Test'), response.context['products'])
 
     def test_search_with_matching_title_one_matching_product(self):
         get_parameters = {'search': 'Louis Vutton'}
@@ -90,7 +93,7 @@ class ProductSearchTest(TestCase):
         self.assertTemplateUsed(response, 'core/home.html')
         self.assertIn('products', response.context)
         self.assertEqual(len(response.context['products']), 1)
-        self.assertEqual(response.context['products'][0], Product.objects.filter(description='Product Test 3'))
+        self.assertIn(Product.objects.get(description='Product Test 3'), response.context['products'])
 
     def test_search_with_matching_title_case_insensitive_one_matching_product(self):
         get_parameters = {'search': 'louis vutton'}
@@ -99,19 +102,44 @@ class ProductSearchTest(TestCase):
         self.assertTemplateUsed(response, 'core/home.html')
         self.assertIn('products', response.context)
         self.assertEqual(len(response.context['products']), 1)
-        self.assertEqual(response.context['products'][0], Product.objects.filter(description='Product Test 3'))
+        self.assertIn(Product.objects.get(description='Product Test 3'), response.context['products'])
 
-    def test_search_with_part_description(self):
-        pass
+    def test_search_with_part_title_two_matching_products(self):
+        get_parameters = {'search': 'louis vutt'}
+        response = self.client.get(reverse('core:search'), get_parameters)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/home.html')
+        self.assertIn('products', response.context)
+        self.assertEqual(len(response.context['products']), 2)
+        self.assertIn(Product.objects.get(description='Product Test 3'), response.context['products'])
+        self.assertIn(Product.objects.get(description='Product Test 4'), response.context['products'])
 
-    def test_search_with_matching_description(self):
-        pass
+    def test_search_with_part_title_case_insensitive_three_matching_products(self):
+        get_parameters = {'search': 'louis'}
+        response = self.client.get(reverse('core:search'), get_parameters)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/home.html')
+        self.assertIn('products', response.context)
+        self.assertEqual(len(response.context['products']), 3)
+        self.assertIn(Product.objects.get(description='Product Test 3'), response.context['products'])
+        self.assertIn(Product.objects.get(description='Product Test 4'), response.context['products'])
+        self.assertIn(Product.objects.get(description='Product Test 5'), response.context['products'])
 
-    def test_search_with_matching_category(self):
-        pass
+    def test_search_with_empty_string_returns_all_products(self):
+        get_parameters = {'search': ''}
+        response = self.client.get(reverse('core:search'), get_parameters)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/home.html')
+        self.assertIn('products', response.context)
+        self.assertEqual(len(response.context['products']), Product.objects.count())
 
-    def test_search_with_empty_string(self):
-        pass
+    def test_search_with_spaces_in_string_returns_all_products(self):
+        get_parameters = {'search': '  '}
+        response = self.client.get(reverse('core:search'), get_parameters)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/home.html')
+        self.assertIn('products', response.context)
+        self.assertEqual(len(response.context['products']), Product.objects.count())
 
 class ProductDetailTest(TestCase):
     def test_view_url_exists(self):

@@ -1,4 +1,3 @@
-import datetime
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate
@@ -12,6 +11,7 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
+import datetime
 import hashlib
 import requests
 from urllib.parse import urlencode, quote_plus
@@ -263,9 +263,10 @@ def payment_notify(request):
     payment.save()
     if payment.status == 'S':
         # Place order if payment is successful. TODO: Maybe change the business logic?
-        payment.order.placement_date = datetime.date.today
-        payment.order.is_active = False
-        payment.order.save()
+        order = payment.order
+        order.placement_date = datetime.date.today()
+        order.is_active = False
+        order.save()
 
         email_title = f'{payment.item_name} confirmation'
         email_message = f'Dear {payment.order.user.username} \n\nYour order has been placed.'
@@ -280,6 +281,7 @@ def payment_notify(request):
 def payment_cancel(request):
     print('cancelled')
     # send_mail('Order payment cancelled', 'Your payment was cancelled. You can try again.', settings.EMAIL_HOST_USER, ['berrieswebdev@gmail.com'], fail_silently=False)
+    # TODO set payment to cancelled.
     messages.error(request, 'The payment has been cancelled. If you still want to place the order, you need to complete payment.')
     return redirect('core:index')
 

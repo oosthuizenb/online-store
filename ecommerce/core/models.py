@@ -25,7 +25,7 @@ class Product(models.Model):
     
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    order_number = models.CharField(max_length=6, default='123', unique=True)
+    # order_number = models.CharField(max_length=6, default='123', unique=True)
     placement_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     

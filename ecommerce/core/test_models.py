@@ -1,75 +1,68 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
-from .models import Product, Order, OrderItem, Address, Payment
+from .models import Product, Order, OrderItem, Address, Payment, Review
 
 class ProductTests(TestCase):
-    def setUp(self):
-        Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
-        Product.objects.create(title='Product title 2', description='Product description 2', price=10, category='BK')
+    @classmethod
+    def setUpTestData(cls):
+        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
+        cls.product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=10, category='BK')
+        cls.product_1.save()
+        cls.product_2.save()
         
             
     def test_product_name_is_product_title(self):
-        product = Product.objects.get(id=1)
         expected_object_name = 'Product title 1' # TODO hard code these values?
-        self.assertEqual(str(product), expected_object_name)
+        self.assertEqual(str(self.product_1), expected_object_name)
         
     def test_product_get_absolute_url(self):
-        product = Product.objects.get(id=1)
-        self.assertEqual(product.get_absolute_url(), '/detail/1/')
+        self.assertEqual(self.product_1.get_absolute_url(), '/detail/1/')
         
     def test_product_category_cp_is_computers(self):
-        product = Product.objects.get(id=1)
         expected_category = 'Computers'
-        self.assertEqual(product.get_category_display(), expected_category)
+        self.assertEqual(self.product_1.get_category_display(), expected_category)
         
     def test_product_category_bk_is_book(self):
-        product = Product.objects.get(id=2)
         expected_category = 'Book'
-        self.assertEqual(product.get_category_display(), expected_category)
+        self.assertEqual(self.product_2.get_category_display(), expected_category)
         
     # TODO test that there is actually an image uploaded
     # TODO test publish_date is equal to date instance was created
         
 class OrderTests(TestCase):
-    def setUp(self):
-        user = User.objects.create_user(username='testuser1', password='pass123')
-        user.save()
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser1', password='pass123')
+        cls.user.save()
         
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
-        product_1.save()
-        product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=100.0, category='CG')
-        product_2.save()
+        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
+        cls.product_1.save()
+        cls.product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=100.0, category='CG')
+        cls.product_2.save()
         
-        order = Order.objects.create(user=user, order_number="10")
-        order.save()
+        cls.order = Order.objects.create(user=cls.user)
+        cls.order.save()
         
     def test_order_name(self):
-        order = Order.objects.get(id=1)
         expected_name = f'Order #1'
-        self.assertEqual(str(order), expected_name)
+        self.assertEqual(str(self.order), expected_name)
         
     def test_order_total_price_is_sum_of_order_items_price_with_two_order_items(self):
-        order = Order.objects.get(id=1)
-        product_1 = Product.objects.get(id=1)
-        product_2 = Product.objects.get(id=2)
-        OrderItem.objects.create(item=product_1, order=order, quantity=3)
-        OrderItem.objects.create(item=product_2, order=order, quantity=1)
+        OrderItem.objects.create(item=self.product_1, order=self.order, quantity=3)
+        OrderItem.objects.create(item=self.product_2, order=self.order, quantity=1)
         expected_total_price = 0
-        for order_item in OrderItem.objects.filter(order=order):
+        for order_item in OrderItem.objects.filter(order=self.order):
             expected_total_price += order_item.total_price
-        self.assertEqual(order.total_price, expected_total_price)
+        self.assertEqual(self.order.total_price, expected_total_price)
         
     def test_order_total_price_is_sum_of_order_items_price_with_one_order_items(self):
-        order = Order.objects.get(id=1)
-        product_1 = Product.objects.get(id=1)
-        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        OrderItem.objects.create(item=self.product_1, order=self.order, quantity=1)
         expected_total_price = 53.5
-        self.assertEqual(order.total_price, expected_total_price)
+        self.assertEqual(self.order.total_price, expected_total_price)
         
     def test_order_total_price_is_sum_of_order_items_price_with_zero_order_items(self):
-        order = Order.objects.get(id=1)
         expected_total_price = 0
-        self.assertEqual(order.total_price, expected_total_price)
+        self.assertEqual(self.order.total_price, expected_total_price)
         
     
 class OrderItemTests(TestCase):
@@ -80,7 +73,7 @@ class OrderItemTests(TestCase):
         product = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
         product.save()
         
-        order = Order.objects.create(user=user, order_number="10")
+        order = Order.objects.create(user=user)
         order.save()
         
     def test_order_item_name(self):
@@ -143,39 +136,28 @@ class AddressTests(TestCase):
 
 
 class PaymentTests(TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         user = User.objects.create_user(username='testuser1', password='pass123')
         user.save()
-        
         address = Address.objects.create(user=user, name='John Doe', country='NZ', province='EC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
         address.save()
-        
-        order = Order.objects.create(user=user, order_number="10")
+        order = Order.objects.create(user=user)
         order.save()
+        cls.payment = Payment.objects.create(amount=50, address=address, order=order)
+        cls.payment.save()
         
     def test_payment_name(self):
-        address = Address.objects.get(id=1)
-        order = Order.objects.get(id=1)
-        payment = Payment.objects.create(amount=50, address=address, order=order)
-        payment.save()
         expected_name = "Order #1 R50"
-        self.assertEqual(str(payment), expected_name)
+        self.assertEqual(str(self.payment), expected_name)
         
     def test_payment_item_name(self):
-        address = Address.objects.get(id=1)
-        order = Order.objects.get(id=1)
-        payment = Payment.objects.create(amount=50, address=address, order=order)
-        payment.save()
         expected_item_name = "Order #1"
-        self.assertEqual(payment.item_name, expected_item_name)
+        self.assertEqual(self.payment.item_name, expected_item_name)
         
     def test_payment_status_default_is_processing(self):
-        address = Address.objects.get(id=1)
-        order = Order.objects.get(id=1)
-        payment = Payment.objects.create(amount=50, address=address, order=order)
-        payment.save()
         expected_payment_status = 'PROCESSING'
-        self.assertEqual(payment.get_status_display(), expected_payment_status)
+        self.assertEqual(self.payment.get_status_display(), expected_payment_status)
         
         
         
@@ -183,3 +165,37 @@ class PaymentTests(TestCase):
 # TODO test one-to-many relationships
 # TODO test verbose labels
 # TODO test max_length and other field attribute designs..
+
+class ReviewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls) -> None:
+        user = User.objects.create_user(username='testuser1', password='pass123')
+        user.save()
+        product = Product.objects.create(title='Product title 1', description='Product description 1', price=1000.0, category='CP')
+        product.save()
+        cls.review = Review.objects.create(user=user, product=product, rating=1, content='Review content.')
+        cls.review.save()
+
+    def test_user_label(self):
+        field_label = self.review._meta.get_field('user').verbose_name
+        self.assertEqual(field_label, 'user')
+
+    def test_product_label(self):
+        field_label = self.review._meta.get_field('product').verbose_name
+        self.assertEqual(field_label, 'product')
+
+    def test_rating_label(self):
+        field_label = self.review._meta.get_field('rating').verbose_name
+        self.assertEqual(field_label, 'rating')
+
+    def test_content_label(self):
+        field_label = self.review._meta.get_field('content').verbose_name
+        self.assertEqual(field_label, 'content')
+
+    def test_publish_date_label(self):
+        field_label = self.review._meta.get_field('publish_date').verbose_name
+        self.assertEqual(field_label, 'publish date')
+
+    def test_review_name(self):
+        self.assertEqual(str(self.review), f'{self.review.product} with rating of {self.review.rating}')
+

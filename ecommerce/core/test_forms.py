@@ -199,3 +199,12 @@ class AddressFormTest(TestCase):
         self.assertFalse(form.is_valid())
         
 # TODO add tests for field labels
+
+    
+    # def test_rating_min_value(self):
+    #     min_value = self.review._meta.get_field('rating').min_value
+    #     self.assertEqual(min_value, 1)
+
+    # def test_rating_max_value(self):
+    #     max_value = self.review._meta.get_field('rating').max_value
+    #     self.assertEqual(max_value, 5)

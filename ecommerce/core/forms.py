@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Address
+from .models import Address, Review
 
 class RegisterForm(forms.Form):
     email = forms.EmailField()
@@ -70,4 +70,15 @@ class AddressForm(ModelForm):
         model = Address
         exclude = ['user']
         
+
+class ReviewForm(forms.ModelForm):
+    #TODO add minlength and maxlength constraints to rating field
+    class Meta:
+        model = Review
+        exclude = ['user', 'product', 'publish_date']
+
+
+
+        
 # TODO create payment form and maybe order form?
+

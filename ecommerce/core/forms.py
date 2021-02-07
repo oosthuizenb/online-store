@@ -72,7 +72,16 @@ class AddressForm(ModelForm):
         
 
 class ReviewForm(forms.ModelForm):
-    #TODO add minlength and maxlength constraints to rating field
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rating'].widget.attrs.update({'min': 1, 'max': 5, 'value': 5})
+
+    def clean_rating(self):
+        data = self.cleaned_data['rating']
+        if data < 1 or data > 5:
+            raise ValidationError('Rating must be in the range from 1 to 5.')
+        return data
+
     class Meta:
         model = Review
         exclude = ['user', 'product', 'publish_date']

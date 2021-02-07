@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('search/', views.search, name='search'),
     path('detail/<int:product_id>/', views.product_detail, name='product-detail'),
+    path('review-submit/<int:product_id>/', views.review_submit, name='review-submit'),
     path('cart/', views.view_cart, name='cart'),
     path('cart-add/<int:product_id>/<str:redirect_url>/', views.add_to_cart, name='cart-add'),
     path('cart-remove/<int:product_id>/', views.remove_from_cart, name='cart-remove'),

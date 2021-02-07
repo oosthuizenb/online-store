@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
-from .forms import RegisterForm, CustomAuthenticationForm, AddressForm
+from .forms import RegisterForm, CustomAuthenticationForm, AddressForm, ReviewForm
 
 class RegisterFormTest(TestCase):
     def test_email_widget_placeholder(self):
@@ -200,11 +200,48 @@ class AddressFormTest(TestCase):
         
 # TODO add tests for field labels
 
-    
-    # def test_rating_min_value(self):
-    #     min_value = self.review._meta.get_field('rating').min_value
-    #     self.assertEqual(min_value, 1)
+class ReviewFormTest(TestCase):
+    def test_rating_field_label(self):
+        form = ReviewForm()
+        self.assertEqual(form.fields['rating'].label, 'Rating')
 
-    # def test_rating_max_value(self):
-    #     max_value = self.review._meta.get_field('rating').max_value
-    #     self.assertEqual(max_value, 5)
+    def test_rating_widget_min_value(self):
+        form = ReviewForm()
+        min_value = form.fields['rating'].widget.attrs['min']
+        self.assertEqual(min_value, 1)
+
+    def test_rating_widget_max_value(self):
+        form = ReviewForm()
+        max_value = form.fields['rating'].widget.attrs['max']
+        self.assertEqual(max_value, 5)
+
+    def test_rating_widget_default_value_is_5(self):
+        form = ReviewForm()
+        max_value = form.fields['rating'].widget.attrs['value']
+        self.assertEqual(max_value, 5)
+
+    def test_form_invalid_rating_0(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 0})
+        self.assertFalse(form.is_valid())
+        
+    def test_form_invalid_rating_6(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 6})
+        self.assertFalse(form.is_valid())
+
+    def test_form_valid_rating_1(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 1})
+        self.assertTrue(form.is_valid())
+
+    def test_form_valid_rating_5(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 5})
+        self.assertTrue(form.is_valid())
+
+    def test_form_valid_rating_3(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 3})
+        self.assertTrue(form.is_valid())
+
+    def test_form_invalid_rating_non_digit(self):
+        form = ReviewForm({'content': 'Good product.', 'rating': 'a'})
+        self.assertFalse(form.is_valid())
+
+# Guest address/checkout form

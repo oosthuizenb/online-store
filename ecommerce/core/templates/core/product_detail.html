@@ -212,125 +212,50 @@
           <div role="tabpanel" id="reviews" class="product__tab__content fade">
             <div class="review__address__inner">
               <!-- Start Single Review -->
+              {% for review in reviews %}
               <div class="pro__review">
                 <div class="review__thumb">
-                  <img src="images/review/1.jpg" alt="review images">
+                  <img src="images/review/1.jpg" alt="">
                 </div>
                 <div class="review__details">
                   <div class="review__info">
-                    <h4><a href="#">Gerald Barnes</a></h4>
-                    <ul class="rating">
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star-half"></i></li>
-                      <li><i class="zmdi zmdi-star-half"></i></li>
-                    </ul>
-                    <div class="rating__send">
-                      <a href="#"><i class="zmdi zmdi-mail-reply"></i></a>
-                      <a href="#"><i class="zmdi zmdi-close"></i></a>
-                    </div>
+                    <h4><a href="#">{{ review.user.username }}</a></h4>
+                    <p>Rating: {{ review.rating }}</p>
                   </div>
                   <div class="review__date">
-                    <span>27 Jun, 2016 at 2:30pm</span>
+                    <span>{{ review.publish_date }}</span>
                   </div>
-                  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer accumsan egestas elese ifend.
-                    Phasellus a felis at estei to bibendum feugiat ut eget eni Praesent et messages in con sectetur
-                    posuere dolor non.</p>
+                  <p>{{ review.content }}</p>
                 </div>
               </div>
-              <!-- End Single Review -->
-              <!-- Start Single Review -->
-              <div class="pro__review ans">
-                <div class="review__thumb">
-                  <img src="images/review/2.jpg" alt="review images">
-                </div>
-                <div class="review__details">
-                  <div class="review__info">
-                    <h4><a href="#">Gerald Barnes</a></h4>
-                    <ul class="rating">
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star"></i></li>
-                      <li><i class="zmdi zmdi-star-half"></i></li>
-                      <li><i class="zmdi zmdi-star-half"></i></li>
-                    </ul>
-                    <div class="rating__send">
-                      <a href="#"><i class="zmdi zmdi-mail-reply"></i></a>
-                      <a href="#"><i class="zmdi zmdi-close"></i></a>
-                    </div>
-                  </div>
-                  <div class="review__date">
-                    <span>27 Jun, 2016 at 2:30pm</span>
-                  </div>
-                  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer accumsan egestas elese ifend.
-                    Phasellus a felis at estei to bibendum feugiat ut eget eni Praesent et messages in con sectetur
-                    posuere dolor non.</p>
-                </div>
-              </div>
+              <br>
+              {% endfor %}
               <!-- End Single Review -->
             </div>
             <!-- Start RAting Area -->
+            {% if user.is_authenticated %}
             <div class="rating__wrap">
               <h2 class="rating-title">Write A review</h2>
               <h4 class="rating-title-2">Your Rating</h4>
-              <div class="rating__list">
-                <!-- Start Single List -->
-                <ul class="rating">
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                </ul>
-                <!-- End Single List -->
-                <!-- Start Single List -->
-                <ul class="rating">
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                </ul>
-                <!-- End Single List -->
-                <!-- Start Single List -->
-                <ul class="rating">
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                </ul>
-                <!-- End Single List -->
-                <!-- Start Single List -->
-                <ul class="rating">
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                </ul>
-                <!-- End Single List -->
-                <!-- Start Single List -->
-                <ul class="rating">
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                  <li><i class="zmdi zmdi-star-half"></i></li>
-                </ul>
-                <!-- End Single List -->
-              </div>
             </div>
             <!-- End RAting Area -->
             <div class="review__box">
-              <form id="review-form">
-                <div class="single-review-form">
-                  <div class="review-box name">
-                    <input type="text" placeholder="Type your name">
-                    <input type="email" placeholder="Type your email">
-                  </div>
-                </div>
+              <form id="review-form" method="POST" action="{% url 'core:review-submit' product.pk %}">
+                {% csrf_token %}
                 <div class="single-review-form">
                   <div class="review-box message">
-                    <textarea placeholder="Write your review"></textarea>
+                    {{ form.rating.label }}
+                    {{ form.rating }}
+                    {{ form.content.label }}
+                    {{ form.content }}
                   </div>
                 </div>
                 <div class="review-btn">
-                  <a class="fv-btn" href="#">submit review</a>
+                  <input type="submit" value="Submit">
                 </div>
               </form>
             </div>
+            {% endif %}
           </div>
           <!-- End Single Content -->
         </div>

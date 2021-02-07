@@ -16,8 +16,8 @@ import hashlib
 import requests
 from urllib.parse import urlencode, quote_plus
 
-from .models import Product, Order, OrderItem, Address, Payment
-from .forms import RegisterForm, AddressForm
+from .models import Product, Order, OrderItem, Address, Payment, Review
+from .forms import RegisterForm, AddressForm, ReviewForm
 
 def index(request):
     products = Product.objects.all()
@@ -43,11 +43,35 @@ def search(request):
 
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
+    reviews = Review.objects.filter(product=product)
+    form = ReviewForm()
     context = {
         'product': product,
-        'path_info': request.path_info, # For redirecting back here in add_to_cart view TODO: is this being used?
+        'reviews': reviews,
+        'form': form,
     }
     return render(request, "core/product_detail.html", context)
+
+@login_required
+def review_submit(request, product_id):
+    product = get_object_or_404(Product, pk=product_id)
+    form = ReviewForm(request.POST)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.user = request.user
+        review.product = product
+        review.save()
+
+        return redirect('core:product-detail', product_id=product_id)
+    else:
+        reviews = Review.objects.filter(product=product)
+        context = {
+            'product': product,
+            'reviews': reviews,
+            'form': form,
+        }
+        
+        return render(request, 'core/product_detail.html', context)
 
 # TODO password reset view
 @require_http_methods(["GET", "POST"])
@@ -68,12 +92,8 @@ def register(request):
         form = RegisterForm()    
         return render(request, "registration/register.html", {'form': form})
 
-@login_required
 def view_cart(request):
-    try: 
-        order = Order.objects.get(user=request.user, is_active=True)
-    except Order.DoesNotExist:
-        return render(request, "core/cart.html")
+    order, new_obj = Order.objects.new_or_get(request)
     order_items = order.orderitem_set.all()
     if order_items.exists():
         context = {
@@ -81,76 +101,51 @@ def view_cart(request):
         }
         return render(request, "core/cart.html", context)
     return render(request, "core/cart.html")
-
-@login_required
+        
 def add_to_cart(request, product_id, redirect_url):
     product = get_object_or_404(Product, pk=product_id)
-    order_qs = Order.objects.filter(user=request.user, is_active=True)
-    if order_qs.exists():
-        # Order is active and only need to add/update item to cart
-        order = order_qs[0]
-        order_item, created = OrderItem.objects.get_or_create(item=product, order=order)
-        if created:
-            messages.success(request, 'The item has been added to your cart.')
-        else:
-            # Order item exists, so update quantity
-            order_item.quantity += 1
-            messages.success(request, 'The item quantity in your cart has been updated.') 
-        order_item.save()
-    else:
-        # Order has not been created, so create order and add item
-        order = Order(user=request.user)
-        order.save()
-        order_item = OrderItem(item=product, order=order)
-        order_item.save()
+    order, new_obj = Order.objects.new_or_get(request)
+
+    order_item, created = OrderItem.objects.get_or_create(item=product, order=order)
+    if created:
         messages.success(request, 'The item has been added to your cart.')
+    else:
+        # Order item exists, so update quantity
+        order_item.quantity += 1
+        messages.success(request, 'The item quantity in your cart has been updated.') 
+    order_item.save()
 
     if redirect_url == 'product-detail':
         return redirect('core:product-detail', product_id=product_id)
     
     return redirect('core:cart')
 
-@login_required
 def remove_from_cart(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
-    order_qs = Order.objects.filter(user=request.user, is_active=True)
-    if order_qs.exists():
-        # Order is active 
-        order = order_qs[0]
-        order_item = get_object_or_404(OrderItem, item=product, order=order)
-        order_item.delete()
-        messages.success(request, 'The item has been removed from your cart.')
-    else:
-        # Order has not been created so raise Http404
-        raise Http404
+    order, new_obj = Order.objects.new_or_get(request)
+    order_item = get_object_or_404(OrderItem, item=product, order=order)
+    order_item.delete()
+    messages.success(request, 'The item has been removed from your cart.')
     
     return redirect('core:cart')
 
-@login_required
 def remove_single_from_cart(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
-    order_qs = Order.objects.filter(user=request.user, is_active=True)
-    if order_qs.exists():
-        # Order is active 
-        order = order_qs[0]
-        order_item = get_object_or_404(OrderItem, item=product, order=order)
-        order_item.quantity -= 1
-        if order_item.quantity == 0:
-            # Remove the order item if the quantity is now 0
-            order_item.delete()
-            messages.success(request, 'The item has been removed from your cart.')
-        else:
-            order_item.save()
-            messages.success(request, 'The item quantity has been updated.')
-    else: 
-        # Order has not been created so raise Http404
-        raise Http404
+    order, new_obj = Order.objects.new_or_get(request)
+    order_item = get_object_or_404(OrderItem, item=product, order=order)
+    order_item.quantity -= 1
+    if order_item.quantity == 0:
+        # Remove the order item if the quantity is now 0
+        order_item.delete()
+        messages.success(request, 'The item has been removed from your cart.')
+    else:
+        order_item.save()
+        messages.success(request, 'The item quantity has been updated.')
     
     return redirect('core:cart')
 
 @login_required
 def checkout(request):
-    # Check if order is active, otherwise raise 404
     # TODO optimise this
     order_qs = Order.objects.filter(user=request.user, is_active=True)
     if order_qs.exists():

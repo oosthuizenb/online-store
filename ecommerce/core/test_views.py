@@ -9,8 +9,8 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Product, Order, OrderItem, Address, Payment
-from .forms import AddressForm, RegisterForm
+from .models import Product, Order, OrderItem, Address, Payment, Review
+from .forms import AddressForm, RegisterForm, ReviewForm
 
 class IndexTest(TestCase):
     def test_view_url_exists(self):
@@ -142,6 +142,10 @@ class ProductSearchTest(TestCase):
         self.assertEqual(len(response.context['products']), Product.objects.count())
 
 class ProductDetailTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser1', password='pass')
+
     def test_view_url_exists(self):
         Product.objects.create(title='Product title', description='Product description', price=50, category='CP')
         response = self.client.get('/detail/1/')
@@ -167,6 +171,150 @@ class ProductDetailTest(TestCase):
 
     def test_404_response_with_no_product(self):
         response = self.client.get(reverse('core:product-detail', kwargs={'product_id': 1}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_context_contains_unbound_review_form(self):
+        Product.objects.create(title='Product title', description='Product description', price=50, category='CP')
+        response = self.client.get(reverse('core:product-detail', kwargs={'product_id': 1}))
+        self.assertIn('form', response.context)
+        self.assertIsInstance(response.context['form'], ReviewForm)
+        self.assertFalse(response.context['form'].is_bound)
+
+    def test_context_contains_0_reviews(self):
+        Product.objects.create(title='Product title', description='Product description', price=50, category='CP')
+        response = self.client.get(reverse('core:product-detail', kwargs={'product_id': 1}))
+        self.assertIn('reviews', response.context)
+        self.assertEqual(len(response.context['reviews']), 0)
+
+    def test_context_contains_2_reviews(self):
+        product = Product.objects.create(title='Product title', description='Product description', price=50, category='CP')
+        response = self.client.get(reverse('core:product-detail', kwargs={'product_id': 1}))
+        product.save()
+        Review.objects.create(user=self.user, product=product, rating=1, content='Good stuff')
+        Review.objects.create(user=self.user, product=product, rating=5, content='Good stuff 5')
+        self.assertIn('reviews', response.context)
+        self.assertIsInstance(response.context['reviews'][0], Review)
+        self.assertEqual(len(response.context['reviews']), 2)   
+
+class ReviewSubmitTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username='testuser1', password='pass')
+        Product.objects.create(title='Product title', description='Product description', price=50.0, category='CP')
+        Product.objects.create(title='Product title 2', description='Product description 2', price=500.0, category='CP')
+
+    def test_view_url_accessible(self):
+        response = self.client.post('/review-submit/1/')
+        self.assertEqual(response.status_code, 302)
+
+    def test_view_url_accessible_by_name(self):
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_redirect_if_not_logged_in(self):
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}))
+        self.assertRedirects(response, reverse('core:login') + '?next=/review-submit/1/')
+
+    def test_redirect_review_valid_rating_and_content(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 2, 
+            'content': 'Good one.'
+        })
+        self.assertEqual(Review.objects.count(), 1)
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
+    def test_redirect_review_valid_rating_empty_content(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 4, 
+            'content': ''
+        })
+        self.assertEqual(Review.objects.count(), 1)
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
+    def test_review_valid_product_relate(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 3, 
+            'content': 'Good product.'
+        })
+        self.assertEqual(Review.objects.count(), 1)
+        self.assertEqual(Review.objects.all()[0].product, Product.objects.get(pk=1))
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
+    def test_review_valid_user_relate(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 3, 
+            'content': 'Good product.'
+        })
+        self.assertEqual(Review.objects.count(), 1)
+        self.assertEqual(Review.objects.all()[0].user, self.user)
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
+    def test_review_valid_publish_date_is_today(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 5, 
+            'content': 'Good product.'
+        })
+        today = datetime.date.today()
+        self.assertEqual(Review.objects.all()[0].publish_date, today)
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
+    def test_review_invalid_empty_rating(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': '', 
+            'content': ''
+        })
+        self.assertEqual(Review.objects.count(), 0)
+        self.assertIn('form', response.context)
+        self.assertTrue(response.context['form'].is_bound)
+        self.assertFalse(response.context['form'].is_valid())
+        self.assertFormError(response, 'form', 'rating', 'This field is required.')
+
+    def test_review_invalid_0_rating(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 0, 
+            'content': ''
+        })
+        self.assertEqual(Review.objects.count(), 0)
+        self.assertIn('form', response.context)
+        self.assertTrue(response.context['form'].is_bound)
+        self.assertFalse(response.context['form'].is_valid())
+        self.assertFormError(response, 'form', 'rating', 'Rating must be in the range from 1 to 5.')
+
+    def test_review_invalid_6_rating(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 6, 
+            'content': ''
+        })
+        self.assertEqual(Review.objects.count(), 0)
+        self.assertIn('form', response.context)
+        self.assertTrue(response.context['form'].is_bound)
+        self.assertFalse(response.context['form'].is_valid())
+        self.assertFormError(response, 'form', 'rating', 'Rating must be in the range from 1 to 5.')
+
+    def test_review_invalid_correct_template(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
+            'rating': 6, 
+            'content': 'Good'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Review.objects.count(), 0)
+        self.assertTemplateUsed(response, 'core/product_detail.html')
+
+    def test_404_product_does_not_exist(self):
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 5}), {
+            'rating': 5, 
+            'content': 'test'
+        })
         self.assertEqual(response.status_code, 404)
 
 class RegisterTest(TestCase):
@@ -296,11 +444,12 @@ class ViewCartTest(TestCase):
 
     def test_view_url_accessible_by_name(self):
         response = self.client.get(reverse('core:cart'))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
-    def test_redirect_if_not_logged_in(self):
+    def test_uses_correct_template_if_not_logged_in(self):
         response = self.client.get(reverse('core:cart'))
-        self.assertRedirects(response, reverse('core:login') + '?next=/cart/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/cart.html')
 
     def test_uses_correct_template_if_logged_in(self):
         login = self.client.login(username='testuser1', password='pass')
@@ -310,7 +459,7 @@ class ViewCartTest(TestCase):
 
     def test_context_contains_order_items_with_one_order_item(self):
         user = User.objects.all()[0]
-        order = Order.objects.create(user=user, order_number="1")
+        order = Order.objects.create(user=user)
         order.save()
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
         product_1.save()
@@ -324,7 +473,7 @@ class ViewCartTest(TestCase):
 
     def test_context_contains_order_items_with_three_order_items(self):
         user = User.objects.all()[0]
-        order = Order.objects.create(user=user, order_number="1")
+        order = Order.objects.create(user=user)
         order.save()
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
@@ -350,17 +499,71 @@ class ViewCartTest(TestCase):
 
     def test_context_does_not_contain_order_items_with_order_but_zero_order_items(self):
         user = User.objects.all()[0]
-        order = Order.objects.create(user=user, order_number="1")
+        order = Order.objects.create(user=user)
         order.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('order_items', response.context)
 
+    def test_context_contains_guest_order_items_with_one_order_item(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
+        product_1.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        response = self.client.get(reverse('core:cart'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('order_items', response.context)
+        self.assertIsInstance(response.context['order_items'][0], OrderItem)
+        self.assertEqual(len(response.context['order_items']), 1)
+
+    def test_context_contains_guest_order_items_with_three_order_items(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=1005, category='BK')
+        product_2.save()
+        product_3 = Product.objects.create(title='Product title 3', description='Product description 3', price=530.5, category='CG')
+        product_3.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        OrderItem.objects.create(item=product_2, order=order, quantity=1)
+        OrderItem.objects.create(item=product_3, order=order, quantity=1)
+        response = self.client.get(reverse('core:cart'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('order_items', response.context)
+        self.assertIsInstance(response.context['order_items'][0], OrderItem)
+        self.assertEqual(len(response.context['order_items']), 3)
+
+    def test_context_does_not_contain_guest_order_items_with_no_order(self):
+        response = self.client.get(reverse('core:cart'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('order_items', response.context)
+
+    def test_context_does_not_contain_guest_order_items_with_order_but_zero_order_items(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        response = self.client.get(reverse('core:cart'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('order_items', response.context)
+
+
 
 class AddToCartTest(TestCase):
     @classmethod
     def setUpTestData(cls):
+        cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        cls.product_1.save()        
         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
 
     def test_view_url_accessible_by_name(self):
@@ -368,17 +571,22 @@ class AddToCartTest(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_redirect_if_not_logged_in(self):
-        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
-        self.assertRedirects(response, reverse('core:login') + '?next=/cart-add/1/cart/')
+        response = self.client.get('/cart-add/1/cart/', follow=True)
+        self.assertRedirects(response, reverse('core:cart'))
 
     def test_redirect_cart_if_logged_in(self):
-        Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get('/cart-add/1/cart/', follow=True)
         self.assertRedirects(response, reverse('core:cart'))
 
+    def test_redirect_product_detail_if_not_logged_in(self):
+        response = self.client.get(reverse('core:cart-add', kwargs={
+            'product_id': 1,
+            'redirect_url': 'product-detail',
+            }))
+        self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
+
     def test_redirect_product_detail_if_logged_in(self):
-        Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={
             'product_id': 1,
@@ -386,15 +594,93 @@ class AddToCartTest(TestCase):
             }))
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
-    def test_404_if_product_does_not_exist(self):
+    def test_404_if_product_does_not_exist_logged_in(self):
         login = self.client.login(username='testuser1', password='pass')
-        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 2, 'redirect_url': 'cart'}))
         self.assertEqual(response.status_code, 404)
 
+    def test_404_if_product_does_not_exist_not_logged_in(self):
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 2, 'redirect_url': 'cart'}))
+        self.assertEqual(response.status_code, 404)    
+
+    def test_guest_order_item_creation_with_order_and_zero_order_items(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = 1
+        session.save()
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item has been added to your cart.')
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(OrderItem.objects.all().count(), 1)
+
+    def test_guest_new_order_item_quantity_is_one_with_existing_order(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = 1
+        session.save()
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(OrderItem.objects.all()[0].quantity, 1)
+
+    def test_guest_order_item_quantity_is_two_with_order_and_existing_order_item_quantity_of_one(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = 1
+        session.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item quantity in your cart has been updated.')
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(OrderItem.objects.all()[0].quantity, 2)
+
+    def test_guest_order_creation_when_no_order_exists(self):
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(Order.objects.all().count(), 1)
+
+    def test_guest_order_item_creation_when_no_order_exists(self):
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item has been added to your cart.')
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(OrderItem.objects.all().count(), 1)
+
+    def test_guest_order_id_in_session_after_order_creation(self):
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        session = self.client.session
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(session['order_id'], 1)
+
+    def test_order_id_in_session_after_existing_order_update(self):
+        order = Order.objects.create(user=self.test_user)
+        order.save()
+        login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        session = self.client.session
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertEqual(session['order_id'], 1)
+
+    def test_guest_new_order_item_is_related_to_active_order(self):
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = 1
+        session.save()
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
+        response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
+        self.assertRedirects(response, reverse('core:cart'))
+        self.assertTrue(OrderItem.objects.all()[0].order.is_active)
+
     def test_order_item_creation_with_order_and_zero_order_items(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
@@ -405,9 +691,7 @@ class AddToCartTest(TestCase):
         self.assertEqual(OrderItem.objects.all().count(), 1)
 
     def test_new_order_item_quantity_is_one_with_existing_order(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
@@ -415,11 +699,9 @@ class AddToCartTest(TestCase):
         self.assertEqual(OrderItem.objects.all()[0].quantity, 1)
 
     def test_order_item_quantity_is_two_with_order_and_existing_order_item_quantity_of_one(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
-        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         message = list(response.context.get('messages'))[0]
@@ -429,16 +711,12 @@ class AddToCartTest(TestCase):
         self.assertEqual(OrderItem.objects.all()[0].quantity, 2)
 
     def test_order_creation_when_no_order_exists(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
         self.assertRedirects(response, reverse('core:cart'))
         self.assertEqual(Order.objects.all().count(), 1)
 
     def test_order_item_creation_when_no_order_exists(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         message = list(response.context.get('messages'))[0]
@@ -448,11 +726,9 @@ class AddToCartTest(TestCase):
         self.assertEqual(OrderItem.objects.all().count(), 1)
 
     def test_new_order_item_is_related_to_active_order(self):
-        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
-        product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
-        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         self.assertRedirects(response, reverse('core:cart'))
@@ -463,18 +739,22 @@ class RemoveFromCartTest(TestCase):
     def setUpTestData(cls):
         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
 
-    def test_view_url_accessible_by_name_not_logged_in(self):
+    def test_redirect_if_guest_and_order_with_order_item_exists(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
-        self.assertEqual(response.status_code, 302)
-
-    def test_redirect_if_not_logged_in(self):
-        response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
-        self.assertRedirects(response, reverse('core:login') + '?next=/cart-remove/1/')
+        self.assertRedirects(response, reverse('core:cart'))
 
     def test_redirect_if_logged_in_and_order_with_order_item_exists(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
@@ -496,7 +776,7 @@ class RemoveFromCartTest(TestCase):
     def test_404_if_order_exists_but_order_item_does_not(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
@@ -505,10 +785,27 @@ class RemoveFromCartTest(TestCase):
     def test_order_item_delete_with_order_and_order_item(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
+        self.assertEqual(order.orderitem_set.count(), 1)
+        response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}), follow=True)
+        self.assertEqual(order.orderitem_set.count(), 0)
+        self.assertRedirects(response, reverse('core:cart'))
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item has been removed from your cart.')
+
+    def test_guest_order_item_delete_with_order_and_order_item(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
         self.assertEqual(order.orderitem_set.count(), 1)
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.count(), 0)
@@ -522,21 +819,25 @@ class RemoveSingleFromCartTest(TestCase):
     def setUpTestData(cls):
         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
 
-    def test_view_url_accessible_by_name_not_logged_in(self):
-        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
-        self.assertEqual(response.status_code, 302)
-
-    def test_redirect_if_not_logged_in(self):
-        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
-        self.assertRedirects(response, reverse('core:login') + '?next=/cart-remove-single/1/')
-
     def test_redirect_if_logged_in_and_order_with_order_item_exists(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
+        self.assertRedirects(response, reverse('core:cart'))
+
+    def test_redirect_if_not_logged_in_and_order_with_order_item_exists(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session['order_id'] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
         self.assertRedirects(response, reverse('core:cart'))
 
@@ -555,7 +856,7 @@ class RemoveSingleFromCartTest(TestCase):
     def test_404_if_order_exists_but_order_item_does_not(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         login = self.client.login(username='testuser1', password='pass')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
@@ -564,7 +865,7 @@ class RemoveSingleFromCartTest(TestCase):
     def test_order_item_delete_with_order_and_order_item_quantity_one(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
         login = self.client.login(username='testuser1', password='pass')
@@ -579,7 +880,7 @@ class RemoveSingleFromCartTest(TestCase):
     def test_order_item_exists_after_update_with_order_and_order_item_quantity_two(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=2)
         login = self.client.login(username='testuser1', password='pass')
@@ -594,10 +895,60 @@ class RemoveSingleFromCartTest(TestCase):
     def test_order_item_quantity_is_one_after_update_with_order_and_order_item_quantity_two(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        order = Order.objects.create(user=self.test_user, order_number="1")
+        order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=2)
         login = self.client.login(username='testuser1', password='pass')
+        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
+        self.assertEqual(order.orderitem_set.all()[0].quantity, 1)
+        self.assertRedirects(response, reverse('core:cart'))
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item quantity has been updated.')
+
+    def test_guest_order_item_delete_with_order_and_order_item_quantity_one(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session["order_id"] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=1)
+        self.assertEqual(order.orderitem_set.count(), 1)
+        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
+        self.assertEqual(order.orderitem_set.count(), 0)
+        self.assertRedirects(response, reverse('core:cart'))
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item has been removed from your cart.')
+
+    def test_guest_order_item_exists_after_update_with_order_and_order_item_quantity_two(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session["order_id"] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=2)
+        self.assertEqual(order.orderitem_set.count(), 1)
+        response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
+        self.assertEqual(order.orderitem_set.count(), 1)
+        self.assertRedirects(response, reverse('core:cart'))
+        message = list(response.context.get('messages'))[0]
+        self.assertEqual(message.tags, 'success')
+        self.assertEqual(message.message, 'The item quantity has been updated.')
+
+    def test_guest_order_item_quantity_is_one_after_update_with_order_and_order_item_quantity_two(self):
+        product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
+        product_1.save()
+        order = Order.objects.create()
+        order.save()
+        session = self.client.session
+        session["order_id"] = order.id
+        session.save()
+        OrderItem.objects.create(item=product_1, order=order, quantity=2)
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.all()[0].quantity, 1)
         self.assertRedirects(response, reverse('core:cart'))

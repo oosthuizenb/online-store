@@ -22,13 +22,50 @@ class Product(models.Model):
     def get_absolute_url(self):
         return reverse("core:product-detail", kwargs={"product_id": self.pk})
     
-    
+class OrderManager(models.Manager):
+    def new_or_get(self, request):
+        order_id = request.session.get('order_id', None)
+        qs = self.get_queryset().filter(id=order_id)
+        qs_auth_count = 0
+        if request.user.is_authenticated:
+            qs_auth_count = self.get_queryset().filter(user=request.user, is_active=True).count()
+        if qs.count() == 1 and qs_auth_count == 0:
+            new_obj = False
+            order = qs.first()
+            if request.user.is_authenticated and order.user is None:
+                order.user = request.user
+                order.save()
+            return order, new_obj
+        else: # No order id in session
+            # TODO: What happens when active order is different from guest order, and the user logs in? Currently the active order is selected if an active order exists. Maybe we should merge the guest and active(user authenticated) order.
+            if request.user.is_authenticated:
+                qs = self.get_queryset().filter(user=request.user, is_active=True)
+                if qs.count() == 1:
+                    new_obj = False
+                    order = qs.first()
+                else:
+                    order = Order(user=request.user)
+                    order.save()
+                    new_obj = True
+                request.session['order_id'] = order.id
+                return order, new_obj
+            else:
+                order = Order()
+                order.save()
+                new_obj = True
+                request.session['order_id'] = order.id
+                return order, new_obj
+
+
+
 class Order(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.CASCADE)
     # order_number = models.CharField(max_length=6, default='123', unique=True)
     placement_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     
+    objects = OrderManager()
+
     def __str__(self):
         return f'Order #{self.pk}'
     
@@ -38,7 +75,9 @@ class Order(models.Model):
         for item in self.orderitem_set.all():
             total = total + item.total_price
         return total
-    
+
+
+
 class OrderItem(models.Model):
     item = models.ForeignKey(Product, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
@@ -104,7 +143,7 @@ class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     rating = models.IntegerField()
-    content = models.TextField()
+    content = models.TextField(null=True, blank=True)
     publish_date = models.DateField(auto_now_add=True)
 
     def __str__(self):

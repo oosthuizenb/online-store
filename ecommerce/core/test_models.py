@@ -1,5 +1,8 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.test import TestCase
+from django.test.client import RequestFactory
+from django.urls import reverse
+
 from .models import Product, Order, OrderItem, Address, Payment, Review
 
 class ProductTests(TestCase):
@@ -33,8 +36,9 @@ class OrderTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(username='testuser1', password='pass123')
-        cls.user.save()
-        
+        cls.user_2 = User.objects.create_user(username='testuser2', password='pass123')
+
+
         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
         cls.product_1.save()
         cls.product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=100.0, category='CG')
@@ -42,6 +46,10 @@ class OrderTests(TestCase):
         
         cls.order = Order.objects.create(user=cls.user)
         cls.order.save()
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
         
     def test_order_name(self):
         expected_name = f'Order #1'
@@ -63,6 +71,153 @@ class OrderTests(TestCase):
     def test_order_total_price_is_sum_of_order_items_price_with_zero_order_items(self):
         expected_total_price = 0
         self.assertEqual(self.order.total_price, expected_total_price)
+
+    # TODO: Test following cases for function return values and correct session order id.
+    # guest, no active order, no guest order
+    def test_guest_order_new_or_get_returns_new_order_with_no_session_order_id(self):
+        request = self.factory.get(reverse('core:index'))
+        request.user = AnonymousUser()
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertTrue(new_obj)
+        self.assertIsInstance(order, Order)
+
+    def test_guest_order_new_or_get_adds_session_order_id_no_session_order_id(self):
+        request = self.factory.get(reverse('core:index'))
+        request.user = AnonymousUser()
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], order.id)      
+    
+    # guest, no active order, existing guest order
+    def test_guest_order_new_or_get_returns_guest_order_with_session_order_id(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = AnonymousUser()
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertFalse(new_obj)
+        self.assertIsInstance(order, Order)
+        self.assertEqual(order.id, test_order.id)
+
+    def test_guest_order_new_or_get_keeps_session_order_id_with_session_order_id(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = AnonymousUser()
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], test_order.id) 
+
+    # auth, no active order, no guest order
+    def test_auth_order_new_or_get_returns_new_order_with_no_session_order_id_and_no_active_order(self):
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertTrue(new_obj)
+        self.assertIsInstance(order, Order)
+
+    def test_auth_order_new_or_get_adds_session_order_id_with_no_session_order_id_and_no_active_order(self):
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], order.id)
+
+    def test_auth_order_new_or_get_relates_user_with_no_session_order_id_and_no_active_order(self):
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(self.user_2, order.user)
+
+    # auth, existing active order, no guest order
+    def test_auth_order_new_or_get_returns_active_order_with_no_session_order_id_and_active_order(self):
+        test_order = Order.objects.create(user=self.user_2)
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertFalse(new_obj)
+        self.assertIsInstance(order, Order)
+        self.assertEqual(test_order, order)
+
+    def test_auth_order_new_or_get_adds_session_order_id_with_no_session_order_id_and_active_order(self):
+        test_order = Order.objects.create(user=self.user_2)
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], test_order.id)
+
+    # auth, no active order, existing guest order
+    def test_auth_order_new_or_get_returns_guest_order_with_session_order_id_and_no_active_order(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertFalse(new_obj)
+        self.assertIsInstance(order, Order)
+        self.assertEqual(test_order, order)
+
+    def test_auth_order_new_or_get_keeps_session_order_id_with_session_order_id_and_no_active_order(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], test_order.id)
+
+    def test_auth_order_new_or_get_relates_user_with_session_order_id_and_no_active_order(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user_2
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(self.user_2, order.user)
+
+    # auth, existing active order, existing guest order
+    def test_auth_order_new_or_get_returns_active_order_with_session_order_id_and_active_order(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertFalse(new_obj)
+        self.assertIsInstance(order, Order)
+        self.assertEqual(self.order, order)
+
+    def test_auth_order_new_or_get_updates_session_order_id_with_session_order_id_and_active_order(self):
+        test_order = Order.objects.create()
+        test_order.save()
+        request = self.factory.get(reverse('core:index'))
+        request.user = self.user
+        request.session = self.client.session
+        request.session['order_id'] = test_order.id
+        request.session.save()
+        order, new_obj = Order.objects.new_or_get(request)
+        self.assertEqual(request.session['order_id'], self.order.id)
         
     
 class OrderItemTests(TestCase):
@@ -198,4 +353,3 @@ class ReviewTests(TestCase):
 
     def test_review_name(self):
         self.assertEqual(str(self.review), f'{self.review.product} with rating of {self.review.rating}')
-

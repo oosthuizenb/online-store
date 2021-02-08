@@ -1,9 +1,12 @@
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 from django.test.client import RequestFactory
 from django.urls import reverse
 
 from .models import Product, Order, OrderItem, Address, Payment, Review
+
+User = get_user_model()
 
 class ProductTests(TestCase):
     @classmethod
@@ -35,8 +38,8 @@ class ProductTests(TestCase):
 class OrderTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username='testuser1', password='pass123')
-        cls.user_2 = User.objects.create_user(username='testuser2', password='pass123')
+        cls.user = User.objects.create_user(email='testuser1', password='pass123')
+        cls.user_2 = User.objects.create_user(email='testuser2', password='pass123')
 
 
         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
@@ -222,7 +225,7 @@ class OrderTests(TestCase):
     
 class OrderItemTests(TestCase):
     def setUp(self):
-        user = User.objects.create_user(username='testuser1', password='pass123')
+        user = User.objects.create_user(email='testuser1', password='pass123')
         user.save()
         
         product = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
@@ -261,7 +264,7 @@ class OrderItemTests(TestCase):
         
 class AddressTests(TestCase):
     def setUp(self):
-        user = User.objects.create_user(username='testuser1', password='pass123')
+        user = User.objects.create_user(email='testuser1', password='pass123')
         user.save()
         
         Address.objects.create(user=user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
@@ -293,7 +296,7 @@ class AddressTests(TestCase):
 class PaymentTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        user = User.objects.create_user(username='testuser1', password='pass123')
+        user = User.objects.create_user(email='testuser1', password='pass123')
         user.save()
         address = Address.objects.create(user=user, name='John Doe', country='NZ', province='EC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
         address.save()
@@ -324,7 +327,7 @@ class PaymentTests(TestCase):
 class ReviewTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
-        user = User.objects.create_user(username='testuser1', password='pass123')
+        user = User.objects.create_user(email='testuser1', password='pass123')
         user.save()
         product = Product.objects.create(title='Product title 1', description='Product description 1', price=1000.0, category='CP')
         product.save()
@@ -353,3 +356,32 @@ class ReviewTests(TestCase):
 
     def test_review_name(self):
         self.assertEqual(str(self.review), f'{self.review.product} with rating of {self.review.rating}')
+
+class UserTest(TestCase):
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.user = User.objects.create_user(email='testuser1', password='pass123')
+
+    def test_email_label(self):
+        field_label = self.user._meta.get_field('email').verbose_name
+        self.assertEqual(field_label, 'email address')
+
+    def test_is_active_label(self):
+        field_label = self.user._meta.get_field('is_active').verbose_name
+        self.assertEqual(field_label, 'is active')
+
+    def test_is_active_label(self):
+        field_label = self.user._meta.get_field('is_admin').verbose_name
+        self.assertEqual(field_label, 'is admin')
+
+    def test_username_field_is_email(self):
+        self.assertEqual(self.user.USERNAME_FIELD, 'email')
+
+    def test_required_fields_is_empty_list(self):
+        self.assertEqual(self.user.REQUIRED_FIELDS, [])
+
+    def test_user_name_is_email(self):
+        self.assertEqual(str(self.user), 'testuser1')
+
+    def test_is_staff_property_returns_is_admin(self):
+        self.assertEqual(self.user.is_staff, self.user.is_admin)

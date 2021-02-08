@@ -1,9 +1,8 @@
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db.models import Q
 from django.shortcuts import redirect, render, get_object_or_404
@@ -18,6 +17,8 @@ from urllib.parse import urlencode, quote_plus
 
 from .models import Product, Order, OrderItem, Address, Payment, Review
 from .forms import RegisterForm, AddressForm, ReviewForm
+
+User = get_user_model()
 
 def index(request):
     products = Product.objects.all()
@@ -80,9 +81,9 @@ def register(request):
         form = RegisterForm(request.POST)
         
         if form.is_valid():
-            username = form.cleaned_data['email']
+            email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            user = User.objects.create_user(username, password=password)
+            user = User.objects.create_user(email, password=password)
             messages.success(request, 'Your account has been registered.')
             return redirect('core:index')
         else:

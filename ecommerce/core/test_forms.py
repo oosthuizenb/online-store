@@ -1,6 +1,9 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from .forms import RegisterForm, CustomAuthenticationForm, AddressForm, ReviewForm
+
+User = get_user_model()
 
 class RegisterFormTest(TestCase):
     def test_email_widget_placeholder(self):
@@ -244,4 +247,8 @@ class ReviewFormTest(TestCase):
         form = ReviewForm({'content': 'Good product.', 'rating': 'a'})
         self.assertFalse(form.is_valid())
 
-# Guest address/checkout form
+class CustomUserCreationFormTest(TestCase):
+    pass
+
+class CustomUserChangeFormTest(TestCase):
+    pass

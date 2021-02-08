@@ -9,7 +9,6 @@
     <div class="row">
       <div class="col-md-12 col-sm-12 col-xs-12">
         <form action="#">
-          {% if user.is_authenticated %}
           {% if order_items %}
 
           <div class="table-content table-responsive">
@@ -110,9 +109,6 @@
           </div>
           {% else %}
           <p>There are no items in your cart.</p>
-          {% endif %}
-          {% else %}
-          <p>Please login to create an order.</p>
           {% endif %}
 
 

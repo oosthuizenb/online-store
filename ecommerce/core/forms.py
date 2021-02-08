@@ -1,14 +1,18 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.forms import ModelForm
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, ReadOnlyPasswordHashField, UserCreationForm, UserChangeForm
+
 from .models import Address, Review
 
+User = get_user_model()
+
 class RegisterForm(forms.Form):
-    email = forms.EmailField()
-    password = forms.CharField()
-    password_confirm = forms.CharField()
+    email = forms.EmailField(max_length=255)
+    password = forms.CharField(widget=forms.PasswordInput)
+    password_confirm = forms.CharField(widget=forms.PasswordInput)
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -19,11 +23,17 @@ class RegisterForm(forms.Form):
     # Validate that the username is unique
     def clean_email(self):
         data = self.cleaned_data['email']
-        qs = User.objects.filter(username=data)
+        qs = User.objects.filter(email=data)
         if qs.exists():
             raise ValidationError("The username already exists.")
         return data
     
+    def clean_password(self):
+        data = self.cleaned_data['password']
+        # This raises a ValidationError if it's invalid
+        validate_password(data)
+        return data
+
     # Validate that the passwords match
     def clean(self):
         cleaned_data = super().clean()
@@ -38,6 +48,40 @@ class CustomAuthenticationForm(AuthenticationForm):
         super().__init__(*args, **kwargs)
         self.fields['username'].widget.attrs.update({'placeholder': 'Username'})
         self.fields['password'].widget.attrs.update({'placeholder': 'Password'})
+
+class CustomUserCreationForm(ModelForm):
+    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Password confirmation', widget=forms.PasswordInput)
+
+    class Meta:
+        model = User
+        fields = ('email',)
+
+    def clean_password2(self):
+        # Check that the two password entries match
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise ValidationError("Passwords don't match")
+        return password2
+
+    def save(self, commit=True):
+        # Save the provided password in hashed format
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+        return user
+
+class CustomUserChangeForm(ModelForm):
+    password = ReadOnlyPasswordHashField()
+
+    class Meta:
+        model = User
+        fields = ('email', 'password', 'is_active', 'is_admin')
+
+    def clean_password(self):
+        return self.initial["password"]
 
 # Place holder text for address form widgets
 class AddressForm(ModelForm):

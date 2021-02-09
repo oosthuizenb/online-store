@@ -146,7 +146,7 @@ class ProductSearchTest(TestCase):
 class ProductDetailTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username='testuser1', password='pass')
+        cls.user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 
     def test_view_url_exists(self):
         Product.objects.create(title='Product title', description='Product description', price=50, category='CP')
@@ -201,7 +201,7 @@ class ProductDetailTest(TestCase):
 class ReviewSubmitTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create_user(username='testuser1', password='pass')
+        cls.user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
         Product.objects.create(title='Product title', description='Product description', price=50.0, category='CP')
         Product.objects.create(title='Product title 2', description='Product description 2', price=500.0, category='CP')
 
@@ -218,7 +218,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:login') + '?next=/review-submit/1/')
 
     def test_redirect_review_valid_rating_and_content(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 2, 
             'content': 'Good one.'
@@ -227,7 +227,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_redirect_review_valid_rating_empty_content(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 4, 
             'content': ''
@@ -236,7 +236,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_review_valid_product_relate(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 3, 
             'content': 'Good product.'
@@ -246,7 +246,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_review_valid_user_relate(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 3, 
             'content': 'Good product.'
@@ -256,7 +256,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_review_valid_publish_date_is_today(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 5, 
             'content': 'Good product.'
@@ -266,7 +266,7 @@ class ReviewSubmitTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_review_invalid_empty_rating(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': '', 
             'content': ''
@@ -278,7 +278,7 @@ class ReviewSubmitTest(TestCase):
         self.assertFormError(response, 'form', 'rating', 'This field is required.')
 
     def test_review_invalid_0_rating(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 0, 
             'content': ''
@@ -290,7 +290,7 @@ class ReviewSubmitTest(TestCase):
         self.assertFormError(response, 'form', 'rating', 'Rating must be in the range from 1 to 5.')
 
     def test_review_invalid_6_rating(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 6, 
             'content': ''
@@ -302,7 +302,7 @@ class ReviewSubmitTest(TestCase):
         self.assertFormError(response, 'form', 'rating', 'Rating must be in the range from 1 to 5.')
 
     def test_review_invalid_correct_template(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 1}), {
             'rating': 6, 
             'content': 'Good'
@@ -312,7 +312,7 @@ class ReviewSubmitTest(TestCase):
         self.assertTemplateUsed(response, 'core/product_detail.html')
 
     def test_404_product_does_not_exist(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:review-submit', kwargs={'product_id': 5}), {
             'rating': 5, 
             'content': 'test'
@@ -348,8 +348,8 @@ class RegisterTest(TestCase):
     def test_post_form_valid_with_valid_data_and_redirects_with_success_message(self):
         response = self.client.post(reverse('core:register'), {
             'email': 'testuser@gmail.com',
-            'password': 'test',
-            'password_confirm': 'test'
+            'password': 'testtesttest1',
+            'password_confirm': 'testtesttest1'
         }, follow=True)
         self.assertRedirects(response, reverse('core:index'))
         message = list(response.context.get('messages'))[0]
@@ -359,12 +359,12 @@ class RegisterTest(TestCase):
     def test_post_form_with_valid_data_creates_user(self):
         response = self.client.post(reverse('core:register'), {
             'email': 'testuser@gmail.com',
-            'password': 'test',
-            'password_confirm': 'test'
+            'password': 'testtesttest1',
+            'password_confirm': 'testtesttest1'
         })
         self.assertRedirects(response, reverse('core:index'))
-        self.assertEqual(User.objects.filter(username='testuser@gmail.com').count(), 1)
-        self.assertEqual(User.objects.all()[0].username, 'testuser@gmail.com')
+        self.assertEqual(User.objects.filter(email='testuser@gmail.com').count(), 1)
+        self.assertEqual(User.objects.all()[0].email, 'testuser@gmail.com')
 
     def test_post_form_invalid_with_empty_data(self):
         response = self.client.post(reverse('core:register'), {})
@@ -374,11 +374,11 @@ class RegisterTest(TestCase):
         self.assertFalse(response.context['form'].is_valid())
 
     def test_post_form_invalid_with_existing_user(self):
-        User.objects.create_user(username='testuser@gmail.com', password='1X<ISRUkw+tuK')
+        User.objects.create_user(email='testuser@gmail.com', password='1X<ISRUkw+tuK')
         response = self.client.post(reverse('core:register'), {
             'email': 'testuser@gmail.com',
-            'password': 'test',
-            'password_confirm': 'test'
+            'password': 'testtesttest1',
+            'password_confirm': 'testtesttest1'
         })
         self.assertEqual(response.status_code, 200)
         self.assertTrue('form' in response.context)
@@ -388,8 +388,8 @@ class RegisterTest(TestCase):
     def test_post_form_invalid_with_non_matching_passwords(self):
         response = self.client.post(reverse('core:register'), {
             'email': 'testuser@gmail.com',
-            'password': 'test',
-            'password_confirm': 'test_not'
+            'password': 'testtesttest1',
+            'password_confirm': 'test_nottesttest1'
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -407,8 +407,8 @@ class RegisterTest(TestCase):
     def test_validation_error_with_empty_username(self):
         response = self.client.post(reverse('core:register'), {
             'email': '',
-            'password': 'test',
-            'password_confirm': 'test_not'
+            'password': 'testtesttest1',
+            'password_confirm': 'test_nottesttest1'
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -419,7 +419,7 @@ class RegisterTest(TestCase):
         response = self.client.post(reverse('core:register'), {
             'email': 'test@gmail.com',
             'password': '',
-            'password_confirm': 'test_not'
+            'password_confirm': 'test_nottesttest1'
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -442,7 +442,7 @@ class RegisterTest(TestCase):
 
 class ViewCartTest(TestCase):
     def setUp(self):
-        test_user1 = User.objects.create_user(username='testuser1', password='pass')
+        test_user1 = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 
     def test_view_url_accessible_by_name(self):
         response = self.client.get(reverse('core:cart'))
@@ -454,7 +454,7 @@ class ViewCartTest(TestCase):
         self.assertTemplateUsed(response, 'core/cart.html')
 
     def test_uses_correct_template_if_logged_in(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'core/cart.html')
@@ -466,7 +466,7 @@ class ViewCartTest(TestCase):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=53.5, category='CP')
         product_1.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('order_items', response.context)
@@ -486,7 +486,7 @@ class ViewCartTest(TestCase):
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
         OrderItem.objects.create(item=product_2, order=order, quantity=1)
         OrderItem.objects.create(item=product_3, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('order_items', response.context)
@@ -494,7 +494,7 @@ class ViewCartTest(TestCase):
         self.assertEqual(len(response.context['order_items']), 3)
 
     def test_context_does_not_contain_order_items_with_no_order(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('order_items', response.context)
@@ -503,7 +503,7 @@ class ViewCartTest(TestCase):
         user = User.objects.all()[0]
         order = Order.objects.create(user=user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart'))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('order_items', response.context)
@@ -566,7 +566,7 @@ class AddToCartTest(TestCase):
     def setUpTestData(cls):
         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         cls.product_1.save()        
-        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.test_user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 
     def test_view_url_accessible_by_name(self):
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
@@ -577,7 +577,7 @@ class AddToCartTest(TestCase):
         self.assertRedirects(response, reverse('core:cart'))
 
     def test_redirect_cart_if_logged_in(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get('/cart-add/1/cart/', follow=True)
         self.assertRedirects(response, reverse('core:cart'))
 
@@ -589,7 +589,7 @@ class AddToCartTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_redirect_product_detail_if_logged_in(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={
             'product_id': 1,
             'redirect_url': 'product-detail',
@@ -597,7 +597,7 @@ class AddToCartTest(TestCase):
         self.assertRedirects(response, reverse('core:product-detail', kwargs={'product_id': 1}))
 
     def test_404_if_product_does_not_exist_logged_in(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 2, 'redirect_url': 'cart'}))
         self.assertEqual(response.status_code, 404)
 
@@ -664,7 +664,7 @@ class AddToCartTest(TestCase):
     def test_order_id_in_session_after_existing_order_update(self):
         order = Order.objects.create(user=self.test_user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         session = self.client.session
         self.assertRedirects(response, reverse('core:cart'))
@@ -684,7 +684,7 @@ class AddToCartTest(TestCase):
     def test_order_item_creation_with_order_and_zero_order_items(self):
         order = Order.objects.create(user=self.test_user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         message = list(response.context.get('messages'))[0]
         self.assertEqual(message.tags, 'success')
@@ -695,7 +695,7 @@ class AddToCartTest(TestCase):
     def test_new_order_item_quantity_is_one_with_existing_order(self):
         order = Order.objects.create(user=self.test_user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
         self.assertRedirects(response, reverse('core:cart'))
         self.assertEqual(OrderItem.objects.all()[0].quantity, 1)
@@ -704,7 +704,7 @@ class AddToCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         message = list(response.context.get('messages'))[0]
         self.assertEqual(message.tags, 'success')
@@ -713,13 +713,13 @@ class AddToCartTest(TestCase):
         self.assertEqual(OrderItem.objects.all()[0].quantity, 2)
 
     def test_order_creation_when_no_order_exists(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}))
         self.assertRedirects(response, reverse('core:cart'))
         self.assertEqual(Order.objects.all().count(), 1)
 
     def test_order_item_creation_when_no_order_exists(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         message = list(response.context.get('messages'))[0]
         self.assertEqual(message.tags, 'success')
@@ -731,7 +731,7 @@ class AddToCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-add', kwargs={'product_id': 1, 'redirect_url': 'cart'}), follow=True)
         self.assertRedirects(response, reverse('core:cart'))
         self.assertTrue(OrderItem.objects.all()[0].order.is_active)
@@ -739,7 +739,7 @@ class AddToCartTest(TestCase):
 class RemoveFromCartTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.test_user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 
     def test_redirect_if_guest_and_order_with_order_item_exists(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
@@ -759,19 +759,19 @@ class RemoveFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
         self.assertRedirects(response, reverse('core:cart'))
 
     def test_404_if_product_does_not_exist(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
     def test_404_if_order_does_not_exist(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
@@ -780,7 +780,7 @@ class RemoveFromCartTest(TestCase):
         product_1.save()
         order = Order.objects.create(user=self.test_user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
@@ -790,7 +790,7 @@ class RemoveFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         self.assertEqual(order.orderitem_set.count(), 1)
         response = self.client.get(reverse('core:cart-remove', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.count(), 0)
@@ -819,7 +819,7 @@ class RemoveFromCartTest(TestCase):
 class RemoveSingleFromCartTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.test_user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 
     def test_redirect_if_logged_in_and_order_with_order_item_exists(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
@@ -827,7 +827,7 @@ class RemoveSingleFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
         self.assertRedirects(response, reverse('core:cart'))
 
@@ -844,14 +844,14 @@ class RemoveSingleFromCartTest(TestCase):
         self.assertRedirects(response, reverse('core:cart'))
 
     def test_404_if_product_does_not_exist(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
     def test_404_if_order_does_not_exist(self):
         product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         product_1.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
@@ -860,7 +860,7 @@ class RemoveSingleFromCartTest(TestCase):
         product_1.save()
         order = Order.objects.create(user=self.test_user)
         order.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}))
         self.assertEqual(response.status_code, 404)
 
@@ -870,7 +870,7 @@ class RemoveSingleFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         self.assertEqual(order.orderitem_set.count(), 1)
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.count(), 0)
@@ -885,7 +885,7 @@ class RemoveSingleFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=2)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         self.assertEqual(order.orderitem_set.count(), 1)
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.count(), 1)
@@ -900,7 +900,7 @@ class RemoveSingleFromCartTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=product_1, order=order, quantity=2)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:cart-remove-single', kwargs={'product_id': 1}), follow=True)
         self.assertEqual(order.orderitem_set.all()[0].quantity, 1)
         self.assertRedirects(response, reverse('core:cart'))
@@ -961,7 +961,7 @@ class RemoveSingleFromCartTest(TestCase):
 class CheckoutTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+        cls.test_user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5, category='CP')
         cls.product_1.save()
         cls.product_2 = Product.objects.create(title='Product title 2', description='Product description 2', price=5, category='BK')
@@ -977,13 +977,13 @@ class CheckoutTest(TestCase):
         self.assertRedirects(response, reverse('core:login') + '?next=/checkout/')
 
     def test_redirect_to_cart_if_order_does_not_exist(self):
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertRedirects(response, reverse('core:cart'))
 
     def test_redirect_to_cart_if_order_exists_but_no_order_items(self):
         order = Order.objects.create(user=self.test_user)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertRedirects(response, reverse('core:cart'))
 
@@ -991,7 +991,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'core/checkout.html')
@@ -1000,7 +1000,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1010,7 +1010,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1021,7 +1021,7 @@ class CheckoutTest(TestCase):
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('existing_addresses', response.context)
@@ -1032,7 +1032,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.get(reverse('core:checkout'))
         self.assertEqual(response.status_code, 200)
         self.assertIn('existing_addresses', response.context)
@@ -1042,7 +1042,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {})
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1052,7 +1052,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {})
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed('core/checkout.html')
@@ -1061,7 +1061,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {})
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1077,7 +1077,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'zip_code': 'asd12'})
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1087,7 +1087,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'mobile_number': 'asdfgtrewq'})
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1097,7 +1097,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'mobile_number': '123456789'})
         self.assertEqual(response.status_code, 200)
         self.assertIn('form', response.context)
@@ -1108,7 +1108,7 @@ class CheckoutTest(TestCase):
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {})
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['form'].is_valid())
@@ -1120,7 +1120,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John doe',
             'country': 'NZ',
@@ -1137,7 +1137,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John doe',
             'country': 'NZ',
@@ -1155,7 +1155,7 @@ class CheckoutTest(TestCase):
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'addresses': 2})
         self.assertEqual(response.status_code, 404)
 
@@ -1165,7 +1165,7 @@ class CheckoutTest(TestCase):
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         address = Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
         address.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'addresses': 1})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Payment.objects.count(), 1)
@@ -1177,7 +1177,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John doe',
             'country': 'NZ',
@@ -1200,7 +1200,7 @@ class CheckoutTest(TestCase):
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
         address = Address.objects.create(user=self.test_user, name='John Doe', country='NZ', province='WC', zip_code='00408', city='Big City', suburb='Small suburb', street_address='50 Big Street', mobile_number='0723518979')
         address.save()
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {'addresses': 1})
         self.assertEqual(response.status_code, 200)
         self.assertIn('payment_data', response.context)
@@ -1222,7 +1222,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John doe',
             'country': 'NZ',
@@ -1253,7 +1253,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John Doe',
             'country': 'NZ',
@@ -1275,7 +1275,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John Doe',
             'country': 'NZ',
@@ -1293,7 +1293,7 @@ class CheckoutTest(TestCase):
         order = Order.objects.create(user=self.test_user)
         order.save()
         OrderItem.objects.create(item=self.product_1, order=order, quantity=1)
-        login = self.client.login(username='testuser1', password='pass')
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
         response = self.client.post(reverse('core:checkout'), {
             'name': 'John Doe',
             'country': 'NZ',
@@ -1312,7 +1312,7 @@ class CheckoutTest(TestCase):
 # class PaymentNotifyTest(TestCase):
 #     @classmethod
 #     def setUpTestData(cls):
-#         cls.test_user = User.objects.create_user(username='testuser1', password='pass')
+#         cls.test_user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
 #         cls.product_1 = Product.objects.create(title='Product title 1', description='Product description 1', price=5.0, category='CP')
 #         cls.product_1.save()
 #         cls.order = Order.objects.create(user=cls.test_user)
@@ -1416,3 +1416,46 @@ class CheckoutTest(TestCase):
 
 #     def test_order_is_active_invalid_payfast_response(self):
 #         pass
+
+class OrderDetailTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(email='testuser1@gmail.com', password='password123')
+
+    def test_view_url_exists(self):
+        Order.objects.create(user=self.user)
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
+        response = self.client.get('/orders/1/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_view_url_accessible_by_name(self):
+        Order.objects.create(user=self.user)
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
+        response = self.client.get(reverse('core:order-detail', kwargs={'order_id': 1}))
+        self.assertEqual(response.status_code, 200)
+    
+    def test_view_uses_correct_template(self):
+        Order.objects.create(user=self.user)
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
+        response = self.client.get(reverse('core:order-detail', kwargs={'order_id': 1}))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'core/order_detail.html')
+
+    def test_context_with_one_product(self):
+        Order.objects.create(user=self.user)
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
+        response = self.client.get(reverse('core:order-detail', kwargs={'order_id': 1}))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('order' in response.context)
+        self.assertTrue(isinstance(response.context['order'], Order))
+
+    def test_404_response_with_no_order(self):
+        login = self.client.login(email='testuser1@gmail.com', password='password123')
+        response = self.client.get(reverse('core:order-detail', kwargs={'order_id': 1}))
+        self.assertEqual(response.status_code, 404)
+
+    #404 if order exists but does not belong to user
+    #redirect if not logged in
+
+class AccountTest(TestCase):
+    pass

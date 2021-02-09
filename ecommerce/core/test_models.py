@@ -385,3 +385,21 @@ class UserTest(TestCase):
 
     def test_is_staff_property_returns_is_admin(self):
         self.assertEqual(self.user.is_staff, self.user.is_admin)
+
+    def test_create_user_saves_user_in_database(self):
+        user = User.objects.create_user('test@gmail.com', 'mypassword123')
+        self.assertEqual(User.objects.all().count(), 2)
+        self.assertEqual(User.objects.all()[1], user)
+
+    def test_create_superuser_saves_user_in_database(self):
+        user = User.objects.create_superuser('test@gmail.com', 'mypassword123')
+        self.assertEqual(User.objects.all().count(), 2)
+        self.assertEqual(User.objects.all()[1], user)
+
+    def test_create_superuser_is_superuser(self):
+        user = User.objects.create_superuser('test@gmail.com', 'mypassword123')
+        self.assertTrue(user.is_superuser)
+
+    def test_create_superuser_is_admin(self):
+        user = User.objects.create_superuser('test@gmail.com', 'mypassword123')
+        self.assertTrue(user.is_admin)

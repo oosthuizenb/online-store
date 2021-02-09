@@ -24,26 +24,26 @@ class RegisterFormTest(TestCase):
     def test_unique_username_is_valid(self):
         form = RegisterForm(data={
             'email': 'test@gmail.com',
-            'password': 'a_password',
-            'password_confirm': 'a_password',
+            'password': 'a_password123',
+            'password_confirm': 'a_password123',
         })
         self.assertTrue(form.is_valid())
     
     def test_non_unique_username_is_invalid(self):
-        user = User.objects.create_user(username='test@gmail.com', password='pass123')
+        user = User.objects.create_user(email='test@gmail.com', password='pass123')
         user.save()
         form = RegisterForm(data={
             'email': 'test@gmail.com',
-            'password': 'a_password',
-            'password_confirm': 'a_password',
+            'password': 'a_password123',
+            'password_confirm': 'a_password123',
         })
         self.assertFalse(form.is_valid())
     
     def test_password_matches_is_valid(self):
         form = RegisterForm(data={
             'email': 'test@gmail.com',
-            'password': '123',
-            'password_confirm': '123',
+            'password': 'a123123123',
+            'password_confirm': 'a123123123',
         })
         self.assertTrue(form.is_valid())
     
@@ -52,6 +52,14 @@ class RegisterFormTest(TestCase):
             'email': 'test@gmail.com',
             'password': '1234',
             'password_confirm': '123',
+        })
+        self.assertFalse(form.is_valid())
+
+    def test_password_validation_is_called(self):
+        form = RegisterForm(data={
+            'email': 'test@gmail.com',
+            'password': '1234',
+            'password_confirm': '1234',
         })
         self.assertFalse(form.is_valid())
         

@@ -139,8 +139,8 @@ MESSAGE_TAGS = {
 
 # PayFast settings
 PAYFAST_URL = "https://sandbox.payfast.co.za/eng/process"
-PAYFAST_MERCHANT_ID = "10005272"
-PAYFAST_MERCHANT_KEY = "y7t77sn8isy5n"
+PAYFAST_MERCHANT_ID = "secret"
+PAYFAST_MERCHANT_KEY = "secret"
 PAYFAST_RETURN_URL = 'https://' + NGROK_HOST + '/payment-return/'
 PAYFAST_CANCEL_URL = 'https://' + NGROK_HOST + '/payment-cancel/'
 PAYFAST_NOTIFY_URL = 'https://' + NGROK_HOST + '/payment-notify/'
@@ -162,7 +162,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'berrieswebdev@gmail.com'
-EMAIL_HOST_PASSWORD = 'agVwgZ2WiJK7a76'
+EMAIL_HOST_USER = 'secret'
+EMAIL_HOST_PASSWORD = 'secret'
 
 AUTH_USER_MODEL = 'core.User'
